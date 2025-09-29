@@ -2,22 +2,24 @@ package com.zeropay.merchant
 
 import android.os.Bundle
 import android.util.Log
-import android.view.MotionEvent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-// import androidx.compose.foundation.gestures.detectDragGestures // Not used by the new PatternCanvas
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.drawLine
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Canvas
 import com.zeropay.sdk.ColourFactor
 import com.zeropay.sdk.PatternFactor
 import com.zeropay.sdk.RateLimiter
@@ -41,7 +43,6 @@ class MerchantActivity : ComponentActivity() {
     @Composable
     fun AuthScreen() {
         var step by remember { mutableStateOf("pattern") }
-        // var colourIndices by remember { mutableStateOf<List<Int>>(emptyList()) } // This was in (e) but not used in the provided AuthScreen logic
 
         Box(
             modifier = Modifier
@@ -49,23 +50,18 @@ class MerchantActivity : ComponentActivity() {
                 .background(Color.Black)
         ) {
             when (step) {
-                "pattern" -> PatternCanvas { strokeEvents ->
-                    // The new PatternCanvas calls onDone only if PatternFactor.isValidStroke is true,
-                    // so we might not need the check here if onDone implies valid strokes.
-                    // However, to be safe and align with previous logic where onDone provided raw events:
-                    if (PatternFactor.isValidStroke(strokeEvents)) {
-                        proofs.add(PatternFactor.digest(strokeEvents))
+                "pattern" -> PatternCanvas { strokeOffsets ->
+                    // NOTE: PatternFactor.isValidStroke and digest must now accept List<Offset>
+                    if (PatternFactor.isValidStroke(strokeOffsets)) {
+                        proofs.add(PatternFactor.digest(strokeOffsets))
                         step = "colour"
                     } else {
-                        // Optional: handle invalid stroke scenario if not automatically handled by PatternCanvas clearing events
-                        // For example, show a message or simply wait for new input.
-                        // The new PatternCanvas clears events internally if not valid.
+                        // Optionally show message for invalid pattern
                     }
                 }
                 "colour" -> ColourMatrix(onSelected = { indices ->
                     proofs.add(ColourFactor.digest(indices))
                     if (RateLimiter.check(uidHash) == RateLimiter.RateResult.OK) {
-                        // demo approval
                         setContent { ApprovedScreen() }
                     } else {
                         setContent { RateLimitedScreen() }
@@ -90,51 +86,49 @@ class MerchantActivity : ComponentActivity() {
     }
 
     @Composable
-    fun PatternCanvas(onDone: (List<MotionEvent>) -> Unit) {
-        val events = remember { mutableListOf<MotionEvent>() }
-        var lastTime by remember { mutableLongStateOf(0L) }
+    fun PatternCanvas(onDone: (List<Offset>) -> Unit) {
+        var pathPoints by remember { mutableStateOf(listOf<Offset>()) }
+        var isDrawing by remember { mutableStateOf(false) }
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            // ignore hover, only drag
-                            if (event.changes.any { it.pressed }) {
-                                val ev = MotionEvent.obtain(
-                                    System.currentTimeMillis(),
-                                    System.currentTimeMillis(),
-                                    MotionEvent.ACTION_MOVE,
-                                    event.changes.first().position.x,
-                                    event.changes.first().position.y,
-                                    0
-                                )
-                                if (ev.eventTime - lastTime >= 20 && events.size < 300) {
-                                    events.add(ev)
-                                    lastTime = ev.eventTime
-                                }
-                                if (event.changes.all { !it.pressed }) {
-                                    // finger lifted
-                                    // The new PatternCanvas design calls onDone from within.
-                                    // It also clears events if not valid.
-                                    val currentEvents = ArrayList(events) // Create a stable copy for processing
-                                    if (PatternFactor.isValidStroke(currentEvents)) {
-                                        onDone(currentEvents) // Pass the collected events
-                                        // The original request for PatternCanvas had `return@pointerInput` here.
-                                        // This would stop further gesture detection after one successful pattern.
-                                        // If this is the desired behavior (one pattern then stop):
-                                        return@awaitPointerEventScope // Corrected return
-                                    }
-                                    events.clear() // Clear events if not valid or after processing
-                                }
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            isDrawing = true
+                            pathPoints = listOf(offset)
+                        },
+                        onDrag = { change, _ ->
+                            pathPoints = pathPoints + change.position
+                        },
+                        onDragEnd = {
+                            isDrawing = false
+                            if (pathPoints.size > 2) { // You can change min length as needed
+                                onDone(pathPoints)
                             }
+                            pathPoints = emptyList()
+                        },
+                        onDragCancel = {
+                            isDrawing = false
+                            pathPoints = emptyList()
                         }
-                    }
+                    )
                 }
         ) {
-            Text("Draw 3 strokes", color = Color.White, modifier = Modifier.padding(24.dp))
+            androidx.compose.ui.graphics.Canvas(modifier = Modifier.fillMaxSize()) {
+                if (pathPoints.size > 1) {
+                    for (i in 0 until pathPoints.size - 1) {
+                        drawLine(
+                            color = Color.White,
+                            start = pathPoints[i],
+                            end = pathPoints[i + 1],
+                            strokeWidth = 8f
+                        )
+                    }
+                }
+            }
+            Text("Draw your pattern", color = Color.White, modifier = Modifier.padding(24.dp))
         }
     }
 
@@ -169,13 +163,4 @@ class MerchantActivity : ComponentActivity() {
             }
         }
     }
-} // End of MerchantActivity class
-
-// This function is no longer directly used by the new PatternCanvas,
-// but kept in case it's used elsewhere or for future reference.
-private fun androidx.compose.ui.input.pointer.PointerInputChange.toMotionEvent(): android.view.MotionEvent =
-    android.view.MotionEvent.obtain(
-        System.currentTimeMillis(), System.currentTimeMillis(),
-        if (pressed) android.view.MotionEvent.ACTION_MOVE else android.view.MotionEvent.ACTION_UP,
-        position.x, position.y, 0
-    )
+}
