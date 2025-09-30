@@ -12,6 +12,8 @@ object CsprngShuffle {
         mac.init(SecretKeySpec(seed, "HmacSHA256"))
         val hash = mac.doFinal(System.currentTimeMillis().toString().toByteArray())
         val random = SecureRandom(hash)
+        // The .shuffled(random) extension function on List will work correctly
+        // with a List<T> and return a List<T>.
         return list.shuffled(random)
     }
 }
