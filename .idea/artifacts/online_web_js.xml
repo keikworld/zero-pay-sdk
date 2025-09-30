@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="online-web-js">
+    <output-path>$PROJECT_DIR$/online-web/build/libs</output-path>
+    <root id="archive" name="online-web-js.jar">
+      <element id="module-output" name="ZeroPay.online-web.jsMain" />
+    </root>
+  </artifact>
+</component>

@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "ZeroPay"
-include(":merchant", ":sdk")
+include(":merchant", ":sdk", ":online-web") // MODIFIED LINE
