@@ -1,58 +1,56 @@
 package com.zeropay.sdk
 
-import android.view.MotionEvent
+import androidx.compose.ui.geometry.Offset
 import java.security.MessageDigest
-import kotlin.math.abs
 
 object PatternFactor {
 
     private const val STROKE_TOLERANCE = 20f   // px
     private const val MIN_STROKES       = 3
+    private const val MIN_POINTS_PER_STROKE = 10
 
     data class Point(val x: Float, val y: Float, val t: Long)
 
-    fun isValidStroke(events: List<MotionEvent>): Boolean =
-        splitStrokes(events).size >= MIN_STROKES
+    // Accepts List<Offset> (from Compose), simulates strokes splitting based on distance
+    fun isValidStroke(offsets: List<Offset>): Boolean =
+        splitStrokes(offsets).size >= MIN_STROKES
 
-    fun digest(events: List<MotionEvent>): ByteArray {
-        val strokes = splitStrokes(events)
+    fun digest(offsets: List<Offset>): ByteArray {
+        val strokes = splitStrokes(offsets)
         val baos = mutableListOf<Byte>()
+        val now = System.currentTimeMillis()
         strokes.forEach { stroke ->
-            stroke.forEach { p ->
-                baos.addAll(floatToBytes(p.x).toList()) // Convert ByteArray to List<Byte>
-                baos.addAll(floatToBytes(p.y).toList()) // Convert ByteArray to List<Byte>
-                baos.addAll(longToBytes(p.t).toList())   // Convert ByteArray to List<Byte>
+            stroke.forEachIndexed { idx, pt ->
+                val t = now + idx * 20 // Simulate a timestamp (if needed)
+                baos.addAll(floatToBytes(pt.x).toList())
+                baos.addAll(floatToBytes(pt.y).toList())
+                baos.addAll(longToBytes(t).toList())
             }
         }
         return MessageDigest.getInstance("SHA-256").digest(baos.toByteArray())
     }
 
-    private fun splitStrokes(events: List<MotionEvent>): List<List<Point>> {
-        val strokes = mutableListOf<MutableList<Point>>()
-        var current = mutableListOf<Point>()
-        var lastTime = 0L
-        for (ev in events) {
-            when (ev.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    current = mutableListOf(Point(ev.x, ev.y, ev.eventTime))
-                    lastTime = ev.eventTime
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    // throttle: ignore moves < 20 ms apart
-                    if (ev.eventTime - lastTime >= 20) {
-                        current.add(Point(ev.x, ev.y, ev.eventTime))
-                        lastTime = ev.eventTime
-                    }
-                }
-                MotionEvent.ACTION_UP -> {
-                    current.add(Point(ev.x, ev.y, ev.eventTime))
-                    if (current.size >= 10) strokes.add(current)
-                    current = mutableListOf()
-                }
+    // Split strokes based on large jumps in position (simulate finger lifts)
+    private fun splitStrokes(offsets: List<Offset>): List<List<Offset>> {
+        if (offsets.isEmpty()) return emptyList()
+        val strokes = mutableListOf<MutableList<Offset>>()
+        var current = mutableListOf(offsets.first())
+        for (i in 1 until offsets.size) {
+            val prev = offsets[i - 1]
+            val curr = offsets[i]
+            if (distance(prev, curr) > STROKE_TOLERANCE) {
+                if (current.size >= MIN_POINTS_PER_STROKE) strokes.add(current)
+                current = mutableListOf(curr)
+            } else {
+                current.add(curr)
             }
         }
+        if (current.size >= MIN_POINTS_PER_STROKE) strokes.add(current)
         return strokes
     }
+
+    private fun distance(a: Offset, b: Offset): Float =
+        kotlin.math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y))
 
     private fun floatToBytes(f: Float): ByteArray = java.nio.ByteBuffer.allocate(4).putFloat(f).array()
     private fun longToBytes(l: Long): ByteArray   = java.nio.ByteBuffer.allocate(8).putLong(l).array()
