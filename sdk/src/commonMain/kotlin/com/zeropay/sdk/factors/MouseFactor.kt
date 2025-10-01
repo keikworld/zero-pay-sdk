@@ -1,22 +1,26 @@
 package com.zeropay.sdk.factors
 
-import java.security.MessageDigest
-import java.nio.ByteBuffer
+import com.zeropay.sdk.crypto.CryptoUtils
 
 object MouseFactor {
 
     data class MousePoint(val x: Float, val y: Float, val t: Long)
 
+    /**
+     * Generates a digest from mouse movement data including micro-timing.
+     * Captures x, y coordinates and precise timestamps.
+     */
     fun digestMicroTiming(points: List<MousePoint>): ByteArray {
-        val baos = mutableListOf<Byte>()
-        for (p in points) {
-            baos += floatToBytes(p.x).toList()
-            baos += floatToBytes(p.y).toList()
-            baos += longToBytes(p.t).toList()
+        require(points.isNotEmpty()) { "Points list cannot be empty" }
+        
+        val bytes = mutableListOf<Byte>()
+        
+        for (point in points) {
+            bytes.addAll(CryptoUtils.floatToBytes(point.x).toList())
+            bytes.addAll(CryptoUtils.floatToBytes(point.y).toList())
+            bytes.addAll(CryptoUtils.longToBytes(point.t).toList())
         }
-        return MessageDigest.getInstance("SHA-256").digest(baos.toByteArray())
+        
+        return CryptoUtils.sha256(bytes.toByteArray())
     }
-
-    private fun floatToBytes(f: Float): ByteArray = ByteBuffer.allocate(4).putFloat(f).array()
-    private fun longToBytes(l: Long): ByteArray = ByteBuffer.allocate(8).putLong(l).array()
 }
