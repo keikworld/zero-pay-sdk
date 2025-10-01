@@ -1,15 +1,27 @@
-package com.zeropay.sdk
+package com.zeropay.sdk.factors
 
-import java.security.MessageDigest
+import com.zeropay.sdk.crypto.CryptoUtils
 
 object ColourFactor {
 
-    private val COLOURS = listOf("#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF")
+    private val COLOURS = listOf(
+        "#FF0000", // Red
+        "#00FF00", // Green
+        "#0000FF", // Blue
+        "#FFFF00", // Yellow
+        "#FF00FF", // Magenta
+        "#00FFFF"  // Cyan
+    )
 
     fun digest(selectedIndices: List<Int>): ByteArray {
-        val baos = selectedIndices.map { it.toByte() }.toByteArray()
-        return MessageDigest.getInstance("SHA-256").digest(baos)
+        require(selectedIndices.isNotEmpty()) { "Selected indices cannot be empty" }
+        require(selectedIndices.all { it in COLOURS.indices }) {
+            "Invalid colour index"
+        }
+        
+        val bytes = selectedIndices.map { it.toByte() }.toByteArray()
+        return CryptoUtils.sha256(bytes)
     }
 
-    fun getColours() = COLOURS
+    fun getColours(): List<String> = COLOURS
 }
