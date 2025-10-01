@@ -1,2 +1,2 @@
 # zero-pay-sdk
-User device-free payment auth SDK
+Device-Free Payment Authentication Engine SDK
