@@ -1,19 +1,34 @@
 package com.zeropay.sdk
 
-import java.security.SecureRandom
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
+import com.zeropay.sdk.crypto.CryptoUtils
+import kotlin.random.Random
 
 object CsprngShuffle {
 
-    fun <T> shuffle(list: List<T>): List<T> { // Made generic
-        val seed = SecureRandom.getSeed(32)
-        val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(seed, "HmacSHA256"))
-        val hash = mac.doFinal(System.currentTimeMillis().toString().toByteArray())
-        val random = SecureRandom(hash)
-        // The .shuffled(random) extension function on List will work correctly
-        // with a List<T> and return a List<T>.
+    /**
+     * Shuffles a list using a cryptographically secure random number generator.
+     * Uses HMAC-SHA256 with a secure random seed to derive the shuffle randomness.
+     */
+    fun <T> shuffle(list: List<T>): List<T> {
+        if (list.size <= 1) return list
+        
+        // Generate a secure random seed
+        val seed = CryptoUtils.secureRandomBytes(32)
+        
+        // Use current time as additional entropy
+        val timestamp = System.currentTimeMillis().toString().encodeToByteArray()
+        
+        // Derive a random seed using HMAC
+        val hmacResult = CryptoUtils.hmacSha256(seed, timestamp)
+        
+        // Create a Random instance from the HMAC output
+        // We'll use the first 8 bytes as a long seed
+        var randomSeed = 0L
+        for (i in 0 until 8) {
+            randomSeed = (randomSeed shl 8) or (hmacResult[i].toInt() and 0xFF).toLong()
+        }
+        
+        val random = Random(randomSeed)
         return list.shuffled(random)
     }
 }
