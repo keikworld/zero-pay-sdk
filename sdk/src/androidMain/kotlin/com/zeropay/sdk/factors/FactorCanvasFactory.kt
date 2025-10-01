@@ -2,7 +2,7 @@ package com.zeropay.sdk.factors
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.zeropay.sdk.Factor // Added import for Factor
+import com.zeropay.sdk.Factor
 
 object FactorCanvasFactory {
 
@@ -13,7 +13,7 @@ object FactorCanvasFactory {
         modifier: Modifier = Modifier
     ) {
         when (factor) {
-            Factor.PATTERN_MICRO, Factor.PATTERN_NORMAL -> PatternCanvas { points -> // PatternCanvas needs to be defined
+            Factor.PATTERN_MICRO, Factor.PATTERN_NORMAL -> PatternCanvas { points ->
                 val digest = if (factor == Factor.PATTERN_MICRO) {
                     PatternFactor.digestMicroTiming(points)
                 } else {
@@ -21,19 +21,19 @@ object FactorCanvasFactory {
                 }
                 onDone(digest)
             }
-            Factor.MOUSE_DRAW -> MouseCanvas { points -> // MouseCanvas needs to be defined
+            Factor.MOUSE_DRAW -> MouseCanvas { points ->
                 onDone(MouseFactor.digestMicroTiming(points))
             }
-            Factor.STYLUS_DRAW -> StylusCanvas { points -> // StylusCanvas needs to be defined
+            Factor.STYLUS_DRAW -> StylusCanvas { points ->
                 onDone(StylusFactor.digestFull(points))
             }
-            Factor.COLOUR -> ColourCanvas(onDone) // ColourCanvas needs to be defined
-            Factor.EMOJI -> EmojiCanvas(onDone)   // EmojiCanvas needs to be defined
-            Factor.PIN -> PinCanvas(onDone)       // PinCanvas needs to be defined
-            Factor.VOICE -> VoiceCanvas(onDone)   // VoiceCanvas needs to be defined
-            Factor.NFC -> NfcCanvas(onDone)       // NfcCanvas needs to be defined
-            Factor.BALANCE -> BalanceCanvas(onDone) // BalanceCanvas needs to be defined
-            Factor.FACE -> FaceCanvas(onDone)     // FaceCanvas needs to be defined
+            Factor.COLOUR -> ColourCanvas(onDone)
+            Factor.EMOJI -> EmojiCanvas(onDone)
+            Factor.PIN -> PinCanvas(onDone)
+            Factor.VOICE -> VoiceCanvas(onDone)
+            Factor.NFC -> NfcCanvas(onDone)
+            Factor.BALANCE -> BalanceCanvas(onDone)
+            Factor.FACE -> FaceCanvas(onDone)
         }
     }
 }
