@@ -1,5 +1,0 @@
-package com.zeropay.sdk
-
-enum class Factor {
-    PATTERN_MICRO, PATTERN_NORMAL, MOUSE_DRAW, STYLUS_DRAW, COLOUR, EMOJI, PIN, NFC, BALANCE, FACE, VOICE
-}
