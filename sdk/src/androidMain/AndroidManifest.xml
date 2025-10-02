@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Existing permissions -->
-    <uses-permission android:name="android.permission.NFC" />
     
-    <!-- NEW: Voice factor permission -->
+    <!-- Permissions -->
+    <uses-permission android:name="android.permission.NFC" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     
-    <!-- Existing features -->
+    <!-- Hardware Features (all optional for flexibility) -->
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
-    
-    <!-- NEW: Microphone feature -->
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.biometrics" android:required="false" />
+    <uses-feature android:name="android.hardware.fingerprint" android:required="false" />
+    
 </manifest>
