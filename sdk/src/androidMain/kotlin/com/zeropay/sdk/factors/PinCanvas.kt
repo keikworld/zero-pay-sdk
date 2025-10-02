@@ -1,85 +1,13 @@
-package com.zeropay.sdk.factors
-
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-
-@Composable
-fun PinCanvas(onDone: (ByteArray) -> Unit) {
-    var pin by remember { mutableStateOf("") }
-    val targetLength = 6 // 6-digit PIN
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        Text(
-            "Enter Your PIN",
-            color = Color.White,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold
-        )
-        
-        Text(
-            "Enter $targetLength digits",
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 14.sp
-        )
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        // PIN display (dots)
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            repeat(targetLength) { index ->
-                Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (index < pin.length) Color.White
-                            else Color.White.copy(alpha = 0.3f)
-                        )
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        // Number pad
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            for (row in 0 until 3) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    for (col in 1..3) {
-                        val number = row * 3 + col
-                        PinButton(
+(
                             text = number.toString(),
+                            enabled = pin.length < TARGET_PIN_LENGTH && !isProcessing,
                             onClick = {
-                                if (pin.length < targetLength) {
-                                    pin += number
+                                val now = System.currentTimeMillis()
+                                if (now - lastClickTime >= CLICK_THROTTLE_MS) {
+                                    if (pin.length < TARGET_PIN_LENGTH) {
+                                        pin += number
+                                    }
+                                    lastClickTime = now
                                 }
                             }
                         )
@@ -96,9 +24,14 @@ fun PinCanvas(onDone: (ByteArray) -> Unit) {
                 
                 PinButton(
                     text = "0",
+                    enabled = pin.length < TARGET_PIN_LENGTH && !isProcessing,
                     onClick = {
-                        if (pin.length < targetLength) {
-                            pin += "0"
+                        val now = System.currentTimeMillis()
+                        if (now - lastClickTime >= CLICK_THROTTLE_MS) {
+                            if (pin.length < TARGET_PIN_LENGTH) {
+                                pin += "0"
+                            }
+                            lastClickTime = now
                         }
                     }
                 )
@@ -109,16 +42,23 @@ fun PinCanvas(onDone: (ByteArray) -> Unit) {
                         .size(80.dp)
                         .clip(CircleShape)
                         .background(Color.DarkGray)
-                        .clickable(enabled = pin.isNotEmpty()) {
-                            if (pin.isNotEmpty()) {
-                                pin = pin.dropLast(1)
+                        .clickable(enabled = pin.isNotEmpty() && !isProcessing) {
+                            val now = System.currentTimeMillis()
+                            if (now - lastClickTime >= CLICK_THROTTLE_MS) {
+                                if (pin.isNotEmpty()) {
+                                    pin = pin.dropLast(1)
+                                }
+                                lastClickTime = now
                             }
                         },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         "⌫",
-                        color = if (pin.isNotEmpty()) Color.White else Color.White.copy(alpha = 0.3f),
+                        color = if (pin.isNotEmpty() && !isProcessing) 
+                            Color.White 
+                        else 
+                            Color.White.copy(alpha = 0.3f),
                         fontSize = 24.sp
                     )
                 }
@@ -131,49 +71,71 @@ fun PinCanvas(onDone: (ByteArray) -> Unit) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (pin.isNotEmpty()) {
-                TextButton(onClick = { pin = "" }) {
+            if (pin.isNotEmpty() && !isProcessing) {
+                TextButton(onClick = { 
+                    pin = "" 
+                    lastClickTime = 0L
+                }) {
                     Text("Clear")
                 }
             }
             
-            if (pin.length == targetLength) {
+            if (pin.length == TARGET_PIN_LENGTH && !isProcessing) {
                 Button(
                     onClick = {
-                        val digest = PinFactor.digest(pin)
-                        onDone(digest)
-                    }
+                        isProcessing = true
+                        try {
+                            val digest = PinFactor.digest(pin)
+                            onDone(digest)
+                            
+                            // Security: Zero out PIN from memory
+                            pin = ""
+                        } catch (e: Exception) {
+                            // Log error without exposing PIN
+                            println("PIN processing error: ${e.javaClass.simpleName}")
+                            pin = ""
+                        } finally {
+                            isProcessing = false
+                        }
+                    },
+                    enabled = !isProcessing
                 ) {
-                    Text("Confirm")
+                    Text(if (isProcessing) "Processing..." else "Confirm")
                 }
+            }
+        }
+    }
+    
+    // Auto-clear PIN after 30 seconds of inactivity (security)
+    LaunchedEffect(pin) {
+        if (pin.isNotEmpty()) {
+            kotlinx.coroutines.delay(30000)
+            if (pin.length < TARGET_PIN_LENGTH) {
+                pin = ""
             }
         }
     }
 }
 
 @Composable
-private fun PinButton(text: String, onClick: () -> Unit) {
+private fun PinButton(
+    text: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
     Box(
         modifier = Modifier
             .size(80.dp)
             .clip(CircleShape)
-            .background(Color.DarkGray)
-            .clickable(onClick = onClick),
+            .background(if (enabled) Color.DarkGray else Color.DarkGray.copy(alpha = 0.5f))
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = Color.White,
+            color = if (enabled) Color.White else Color.White.copy(alpha = 0.3f),
             fontSize = 28.sp,
             fontWeight = FontWeight.Medium
         )
-    }
-}
-
-
-        require(pin.isNotEmpty()) { "PIN cannot be empty" }
-        require(pin.all { it.isDigit() }) { "PIN must contain only digits" }
-        val bytes = pin.encodeToByteArray()
-        return com.zeropay.sdk.crypto.CryptoUtils.sha256(bytes)
     }
 }
