@@ -2,6 +2,10 @@ package com.zeropay.sdk
 
 /**
  * Enumeration of all available authentication factors.
+ * 
+ * Updated to include:
+ * - WORDS: 4-word selection authentication
+ * - IMAGE_TAP: Tap 2 locations on an image (GDPR-compliant)
  */
 enum class Factor {
     /** Pattern authentication with micro-timing analysis */
@@ -21,6 +25,12 @@ enum class Factor {
     
     /** Emoji sequence selection */
     EMOJI,
+    
+    /** 4-word selection authentication (new) */
+    WORDS,
+    
+    /** Image tap authentication - tap 2 locations (new, GDPR-compliant) */
+    IMAGE_TAP,
     
     /** PIN code authentication */
     PIN,
