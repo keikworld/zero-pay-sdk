@@ -34,6 +34,8 @@ object FactorCanvasFactory {
             Factor.NFC -> NfcCanvas(onDone)
             Factor.BALANCE -> BalanceCanvas(onDone)
             Factor.FACE -> FaceCanvas(onDone)
+            Factor.WORDS -> WordsCanvas(onDone)
+            Factor.IMAGE_TAP -> ImageTapCanvas(onDone)
         }
     }
 }
