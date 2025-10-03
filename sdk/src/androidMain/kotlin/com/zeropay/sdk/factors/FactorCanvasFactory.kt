@@ -3,6 +3,9 @@ package com.zeropay.sdk.factors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.zeropay.sdk.Factor
+import com.zeropay.sdk.factors.BalanceCanvas
+import com.zeropay.sdk.factors.MouseCanvas
+import com.zeropay.sdk.factors.StylusCanvas
 
 object FactorCanvasFactory {
 
