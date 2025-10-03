@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ZeroPay SDK Network Security Configuration
+    Path: sdk/src/androidMain/res/xml/network_security_config.xml
+    
+    ⚠️ IMPORTANT: You MUST create this folder structure first:
+    mkdir -p sdk/src/androidMain/res/xml
+    
+    Then copy this file to that location.
+-->
+<network-security-config>
+    
+    <!-- ============== BASE CONFIGURATION ============== -->
+    <!-- Block ALL cleartext (HTTP) traffic - only HTTPS allowed -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system certificate authorities -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- ============== CERTIFICATE PINNING ============== -->
+    <!-- Pin certificates for your API domain -->
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- 
+            ⚠️ REPLACE "api.zeropay.com" with your actual API domain
+            Example: api.yourcompany.com
+        -->
+        <domain includeSubdomains="true">api.zeropay.com</domain>
+        
+        <pin-set expiration="2026-12-31">
+            <!-- 
+                ⚠️ TODO: Replace with your ACTUAL certificate hashes
+                
+                How to get your certificate hash:
+                1. Open terminal/command prompt
+                2. Run this command (replace api.zeropay.com with your domain):
+                
+                openssl s_client -connect api.zeropay.com:443 < /dev/null | \
+                  openssl x509 -pubkey -noout | \
+                  openssl pkey -pubin -outform der | \
+                  openssl dgst -sha256 -binary | \
+                  base64
+                
+                3. Copy the output and paste it below
+            -->
+            
+            <!-- Primary certificate (REQUIRED - replace with your hash) -->
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+            
+            <!-- Backup certificate (RECOMMENDED - for certificate rotation) -->
+            <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
+        </pin-set>
+    </domain-config>
+    
+    <!-- ============== DEBUG CONFIGURATION (Optional) ============== -->
+    <!-- 
+        ONLY for development/testing with localhost or test servers.
+        ⚠️ REMOVE THIS SECTION in production builds!
+    -->
+    <debug-overrides>
+        <!-- Allow localhost connections for local testing -->
+        <domain-config cleartextTrafficPermitted="true">
+            <domain includeSubdomains="true">localhost</domain>
+            <domain includeSubdomains="true">127.0.0.1</domain>
+            <domain includeSubdomains="true">10.0.2.2</domain>
+        </domain-config>
+        
+        <!-- Allow test server (replace with your test domain if needed) -->
+        <domain-config cleartextTrafficPermitted="false">
+            <domain includeSubdomains="true">test.zeropay.com</domain>
+            <trust-anchors>
+                <certificates src="system" />
+                <!-- Optionally add test certificates -->
+                <!-- <certificates src="@raw/test_ca" /> -->
+            </trust-anchors>
+        </domain-config>
+    </debug-overrides>
+    
+    <!-- ============== ADDITIONAL DOMAINS (Optional) ============== -->
+    <!-- Add more domains if you connect to multiple APIs -->
+    <!--
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">analytics.zeropay.com</domain>
+        <pin-set>
+            <pin digest="SHA-256">CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=</pin>
+        </pin-set>
+    </domain-config>
+    -->
+    
+</network-security-config>
