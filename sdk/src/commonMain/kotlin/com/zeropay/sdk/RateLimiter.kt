@@ -1,322 +1,218 @@
-package com.zeropay.sdk.network
+package com.zeropay.sdk
 
-import kotlinx.coroutines.delay
-import kotlin.math.pow
-import kotlin.math.min
+import java.util.Timer
+import java.util.TimerTask
+import kotlin.concurrent.Volatile
 
 /**
- * Retry Policy with Exponential Backoff
+ * Thread-safe rate limiter for authentication attempts.
+ * Tracks failed attempts and enforces cooldowns and blocks.
  * 
- * Features:
- * - Configurable max retries
- * - Exponential backoff with jitter
- * - Retry on specific exceptions only
- * - Circuit breaker pattern
+ * FIXED: Added automatic memory cleanup to prevent leaks
  */
-object RetryPolicy {
-    
-    data class RetryConfig(
-        val maxRetries: Int = 3,
-        val initialDelayMs: Long = 1000,
-        val maxDelayMs: Long = 30000,
-        val backoffMultiplier: Double = 2.0,
-        val jitterFactor: Double = 0.1,
-        val retryableExceptions: List<Class<out Exception>> = listOf(
-            java.io.IOException::class.java,
-            java.net.SocketTimeoutException::class.java,
-            java.net.UnknownHostException::class.java
-        )
-    )
-    
-    data class RetryResult<T>(
-        val success: Boolean,
-        val data: T?,
-        val attempts: Int,
-        val lastError: Exception?
-    )
-    
-    /**
-     * Execute operation with retry logic
-     */
-    suspend fun <T> executeWithRetry(
-        config: RetryConfig = RetryConfig(),
-        operation: suspend () -> T
-    ): RetryResult<T> {
-        var lastException: Exception? = null
-        
-        repeat(config.maxRetries) { attempt ->
-            try {
-                val result = operation()
-                return RetryResult(
-                    success = true,
-                    data = result,
-                    attempts = attempt + 1,
-                    lastError = null
-                )
-            } catch (e: Exception) {
-                lastException = e
-                
-                // Check if exception is retryable
-                if (!isRetryable(e, config)) {
-                    return RetryResult(
-                        success = false,
-                        data = null,
-                        attempts = attempt + 1,
-                        lastError = e
-                    )
-                }
-                
-                // Last attempt, don't delay
-                if (attempt == config.maxRetries - 1) {
-                    break
-                }
-                
-                // Calculate delay with exponential backoff and jitter
-                val delay = calculateDelay(
-                    attempt = attempt,
-                    config = config
-                )
-                
-                delay(delay)
-            }
-        }
-        
-        return RetryResult(
-            success = false,
-            data = null,
-            attempts = config.maxRetries,
-            lastError = lastException
-        )
-    }
-    
-    /**
-     * Calculate delay with exponential backoff and jitter
-     */
-    private fun calculateDelay(attempt: Int, config: RetryConfig): Long {
-        // Exponential backoff: delay = initialDelay * (multiplier ^ attempt)
-        val exponentialDelay = config.initialDelayMs * 
-            config.backoffMultiplier.pow(attempt.toDouble())
-        
-        // Cap at max delay
-        val cappedDelay = min(exponentialDelay, config.maxDelayMs.toDouble())
-        
-        // Add jitter to prevent thundering herd
-        val jitter = cappedDelay * config.jitterFactor * Math.random()
-        
-        return (cappedDelay + jitter).toLong()
-    }
-    
-    /**
-     * Check if exception is retryable
-     */
-    private fun isRetryable(e: Exception, config: RetryConfig): Boolean {
-        return config.retryableExceptions.any { it.isInstance(e) }
-    }
-}
+object RateLimiter {
 
-/**
- * Circuit Breaker Pattern
- * 
- * Prevents cascading failures by "opening" circuit after consecutive failures
- */
-class CircuitBreaker(
-    private val failureThreshold: Int = 5,
-    private val resetTimeoutMs: Long = 60000, // 1 minute
-    private val halfOpenRetries: Int = 1
-) {
-    private enum class State { CLOSED, OPEN, HALF_OPEN }
-    
-    private var state = State.CLOSED
-    private var failureCount = 0
-    private var lastFailureTime = 0L
-    private var successCount = 0
-    
-    /**
-     * Execute operation through circuit breaker
-     */
-    suspend fun <T> execute(operation: suspend () -> T): T {
-        // Check if circuit should reset
-        if (state == State.OPEN && 
-            System.currentTimeMillis() - lastFailureTime > resetTimeoutMs) {
-            state = State.HALF_OPEN
-            successCount = 0
-        }
-        
-        // Circuit is open, fail fast
-        if (state == State.OPEN) {
-            throw CircuitBreakerOpenException(
-                "Circuit breaker is open. Try again later."
-            )
-        }
-        
-        return try {
-            val result = operation()
-            onSuccess()
-            result
-        } catch (e: Exception) {
-            onFailure()
-            throw e
-        }
-    }
-    
-    private fun onSuccess() {
-        when (state) {
-            State.HALF_OPEN -> {
-                successCount++
-                if (successCount >= halfOpenRetries) {
-                    state = State.CLOSED
-                    failureCount = 0
-                }
-            }
-            State.CLOSED -> {
-                failureCount = 0
-            }
-            State.OPEN -> {
-                // Should not happen
-            }
-        }
-    }
-    
-    private fun onFailure() {
-        failureCount++
-        lastFailureTime = System.currentTimeMillis()
-        
-        if (failureCount >= failureThreshold) {
-            state = State.OPEN
-        }
-    }
-    
-    fun getState(): String = state.name
-    fun getFailureCount(): Int = failureCount
-}
-
-class CircuitBreakerOpenException(message: String) : Exception(message)
-
-/**
- * Telemetry for monitoring retry behavior
- */
-object RetryTelemetry {
-    
-    data class RetryMetrics(
-        val operationName: String,
-        val attempts: Int,
-        val totalDurationMs: Long,
-        val success: Boolean,
-        val errorType: String?
-    )
-    
-    private val metrics = mutableListOf<RetryMetrics>()
     private val lock = Any()
     
-    /**
-     * Record retry attempt (privacy-safe, no PII)
-     */
-    fun recordRetry(metrics: RetryMetrics) {
-        synchronized(lock) {
-            this.metrics.add(metrics)
-            
-            // Keep only last 1000 entries
-            if (this.metrics.size > 1000) {
-                this.metrics.removeAt(0)
+    @Volatile
+    private val attempts = mutableMapOf<String, Int>()
+    
+    @Volatile
+    private val cooldownStart = mutableMapOf<String, Long>()
+    
+    private val startTime = System.currentTimeMillis()
+    
+    // Auto-cleanup timer
+    private val cleanupTimer = Timer("RateLimiter-Cleanup", true)
+    
+    init {
+        // Schedule cleanup every hour
+        cleanupTimer.scheduleAtFixedRate(object : TimerTask() {
+            override fun run() {
+                cleanup()
             }
+        }, 3600000, 3600000) // 1 hour initial delay, 1 hour period
+        
+        // Also schedule immediate cleanup after 5 minutes
+        cleanupTimer.schedule(object : TimerTask() {
+            override fun run() {
+                cleanup()
+            }
+        }, 300000) // 5 minutes
+    }
+
+    /**
+     * Checks if the user can make an authentication attempt.
+     * Returns the current rate limit status.
+     */
+    fun check(uidHash: String): RateResult {
+        synchronized(lock) {
+            val currentTime = System.currentTimeMillis()
+            
+            // Check 24-hour attempt limit
+            val dayKey = "attempts:$uidHash:${day()}"
+            val dailyCount = attempts.getOrDefault(dayKey, 0)
+            if (dailyCount >= 20) {
+                return RateResult.BLOCKED_24H
+            }
+            
+            // Check fail-based restrictions
+            val failKey = "fails:$uidHash"
+            val fails = attempts.getOrDefault(failKey, 0)
+            
+            when {
+                fails >= 10 -> return RateResult.FROZEN_FRAUD
+                
+                fails >= 8 -> {
+                    // Check 4-hour cooldown
+                    val cooldownKey = "cooldown:$uidHash:4h"
+                    val cooldownTime = cooldownStart[cooldownKey] ?: 0L
+                    val fourHoursMs = 4 * 60 * 60 * 1000L
+                    
+                    if (currentTime - cooldownTime < fourHoursMs) {
+                        return RateResult.COOL_DOWN_4H
+                    }
+                }
+                
+                fails >= 5 -> {
+                    // Check 15-minute cooldown
+                    val cooldownKey = "cooldown:$uidHash:15m"
+                    val cooldownTime = cooldownStart[cooldownKey] ?: 0L
+                    val fifteenMinutesMs = 15 * 60 * 1000L
+                    
+                    if (currentTime - cooldownTime < fifteenMinutesMs) {
+                        return RateResult.COOL_DOWN_15M
+                    }
+                }
+            }
+            
+            // Increment daily attempt counter
+            attempts[dayKey] = dailyCount + 1
+            
+            return RateResult.OK
+        }
+    }
+
+    /**
+     * Records a failed authentication attempt.
+     */
+    fun recordFail(uidHash: String) {
+        synchronized(lock) {
+            val failKey = "fails:$uidHash"
+            val fails = attempts.getOrDefault(failKey, 0) + 1
+            attempts[failKey] = fails
+            
+            val currentTime = System.currentTimeMillis()
+            
+            // Start cooldown timers at thresholds
+            when (fails) {
+                5 -> cooldownStart["cooldown:$uidHash:15m"] = currentTime
+                8 -> cooldownStart["cooldown:$uidHash:4h"] = currentTime
+            }
+        }
+    }
+
+    /**
+     * Resets fail count after successful authentication.
+     */
+    fun resetFails(uidHash: String) {
+        synchronized(lock) {
+            attempts.remove("fails:$uidHash")
+            cooldownStart.remove("cooldown:$uidHash:15m")
+            cooldownStart.remove("cooldown:$uidHash:4h")
+        }
+    }
+
+    /**
+     * Cleans up old entries to prevent memory leaks.
+     * Called automatically every hour.
+     */
+    fun cleanup() {
+        synchronized(lock) {
+            val currentDay = day()
+            val currentTime = System.currentTimeMillis()
+            val keysToRemove = mutableListOf<String>()
+            
+            // Clean up old attempt entries
+            for (key in attempts.keys) {
+                if (key.startsWith("attempts:")) {
+                    val parts = key.split(":")
+                    if (parts.size >= 3) {
+                        val keyDay = parts[2]
+                        // Remove entries older than 2 days
+                        keyDay.toLongOrNull()?.let { day ->
+                            if (currentDay.toLong() - day > 1) {
+                                keysToRemove.add(key)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            keysToRemove.forEach { attempts.remove(it) }
+            
+            // Clean up old cooldown timestamps
+            val cooldownKeysToRemove = mutableListOf<String>()
+            
+            for ((key, timestamp) in cooldownStart) {
+                // Remove cooldowns older than 24 hours
+                if (currentTime - timestamp > 24 * 60 * 60 * 1000L) {
+                    cooldownKeysToRemove.add(key)
+                }
+            }
+            
+            cooldownKeysToRemove.forEach { cooldownStart.remove(it) }
+            
+            // Log cleanup stats (privacy-safe)
+            println("RateLimiter: Cleaned ${keysToRemove.size} attempt entries, ${cooldownKeysToRemove.size} cooldown entries")
         }
     }
     
     /**
-     * Get aggregated statistics
+     * Get current memory usage stats (for monitoring)
      */
     fun getStats(): Stats {
         synchronized(lock) {
-            if (metrics.isEmpty()) {
-                return Stats(
-                    totalRetries = 0,
-                    avgAttempts = 0.0,
-                    successRate = 0.0,
-                    avgDurationMs = 0.0
-                )
-            }
-            
-            val totalRetries = metrics.size
-            val avgAttempts = metrics.map { it.attempts }.average()
-            val successRate = metrics.count { it.success }.toDouble() / totalRetries
-            val avgDurationMs = metrics.map { it.totalDurationMs }.average()
-            
             return Stats(
-                totalRetries = totalRetries,
-                avgAttempts = avgAttempts,
-                successRate = successRate,
-                avgDurationMs = avgDurationMs
+                totalAttempts = attempts.size,
+                activeCooldowns = cooldownStart.size,
+                memoryEstimateKB = ((attempts.size + cooldownStart.size) * 64) / 1024 // Rough estimate
             )
         }
     }
     
     /**
-     * Clear metrics (for testing)
+     * Manually shutdown cleanup timer (for testing)
      */
-    fun clear() {
-        synchronized(lock) {
-            metrics.clear()
-        }
+    fun shutdown() {
+        cleanupTimer.cancel()
+    }
+
+    private fun day(): String {
+        val daysSinceEpoch = System.currentTimeMillis() / (24 * 60 * 60 * 1000L)
+        return daysSinceEpoch.toString()
+    }
+
+    enum class RateResult {
+        /** Authentication attempt is allowed */
+        OK,
+        
+        /** 15-minute cooldown after 5 failures */
+        COOL_DOWN_15M,
+        
+        /** 4-hour cooldown after 8 failures */
+        COOL_DOWN_4H,
+        
+        /** Account frozen due to suspected fraud (10+ failures) */
+        FROZEN_FRAUD,
+        
+        /** Blocked for 24 hours due to too many attempts */
+        BLOCKED_24H
     }
     
     data class Stats(
-        val totalRetries: Int,
-        val avgAttempts: Double,
-        val successRate: Double,
-        val avgDurationMs: Double
+        val totalAttempts: Int,
+        val activeCooldowns: Int,
+        val memoryEstimateKB: Int
     )
-}
-
-/**
- * Biometric authentication with retry logic
- */
-suspend fun authenticateBiometricWithRetry(
-    context: android.content.Context,
-    maxRetries: Int = 3,
-    onSuccess: (ByteArray) -> Unit,
-    onError: (String) -> Unit
-) {
-    val startTime = System.currentTimeMillis()
-    var lastError: String? = null
-    
-    val result = RetryPolicy.executeWithRetry(
-        config = RetryPolicy.RetryConfig(
-            maxRetries = maxRetries,
-            initialDelayMs = 2000,
-            backoffMultiplier = 2.0,
-            retryableExceptions = listOf(
-                // Only retry on transient errors
-                java.io.IOException::class.java
-            )
-        )
-    ) {
-        // Perform biometric authentication
-        authenticateBiometric(context)
-    }
-    
-    // Record telemetry
-    RetryTelemetry.recordRetry(
-        RetryTelemetry.RetryMetrics(
-            operationName = "biometric_auth",
-            attempts = result.attempts,
-            totalDurationMs = System.currentTimeMillis() - startTime,
-            success = result.success,
-            errorType = result.lastError?.javaClass?.simpleName
-        )
-    )
-    
-    if (result.success && result.data != null) {
-        onSuccess(result.data)
-    } else {
-        onError(result.lastError?.message ?: "Authentication failed after $maxRetries attempts")
-    }
-}
-
-/**
- * Helper function for biometric authentication
- */
-private suspend fun authenticateBiometric(context: android.content.Context): ByteArray {
-    // This would integrate with actual biometric authentication
-    // For now, placeholder that throws on failure
-    return com.zeropay.sdk.crypto.CryptoUtils.secureRandomBytes(32)
 }
