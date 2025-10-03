@@ -14,6 +14,8 @@ object FactorRegistry {
         list += Factor.EMOJI
         list += Factor.PIN
         list += Factor.VOICE
+        list += Factor.WORDS
+        list += Factor.IMAGE_TAP  // If pre-approved images available
 
         // Android hardware-specific factors
         if (context.packageManager.hasSystemFeature("android.hardware.nfc")) {
