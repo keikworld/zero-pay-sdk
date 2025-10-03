@@ -1,16 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<!-- 
+    ZeroPay SDK AndroidManifest.xml
+    Path: sdk/src/androidMain/AndroidManifest.xml
     
-    <!-- Permissions -->
+    IMPORTANT: If your AndroidManifest.xml already exists, 
+    just ADD the permissions and features below to your existing file.
+    Don't replace the entire file!
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    
+    <!-- ============== PERMISSIONS ============== -->
+    
+    <!-- Required for network requests -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Required for network state checks -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- Required for NFC authentication -->
     <uses-permission android:name="android.permission.NFC" />
+    
+    <!-- Required for voice authentication -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     
-    <!-- Hardware Features (all optional for flexibility) -->
-    <uses-feature android:name="android.hardware.nfc" android:required="false" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
-    <uses-feature android:name="android.hardware.microphone" android:required="false" />
-    <uses-feature android:name="android.hardware.biometrics" android:required="false" />
-    <uses-feature android:name="android.hardware.fingerprint" android:required="false" />
+    <!-- Required for checking device capabilities -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    
+    <!-- ============== HARDWARE FEATURES ============== -->
+    <!-- All features are optional to support wide range of devices -->
+    
+    <!-- NFC support (optional) -->
+    <uses-feature 
+        android:name="android.hardware.nfc" 
+        android:required="false" />
+    
+    <!-- Camera for face authentication (optional) -->
+    <uses-feature 
+        android:name="android.hardware.camera" 
+        android:required="false" />
+    
+    <!-- Fingerprint/biometric support (optional) -->
+    <uses-feature 
+        android:name="android.hardware.biometrics" 
+        android:required="false" />
+    
+    <uses-feature 
+        android:name="android.hardware.fingerprint" 
+        android:required="false" />
+    
+    <!-- Accelerometer for balance authentication (optional) -->
+    <uses-feature 
+        android:name="android.hardware.sensor.accelerometer" 
+        android:required="false" />
+    
+    <!-- Microphone for voice authentication (optional) -->
+    <uses-feature 
+        android:name="android.hardware.microphone" 
+        android:required="false" />
+    
+    <!-- Touchscreen (should be present on all devices) -->
+    <uses-feature 
+        android:name="android.hardware.touchscreen" 
+        android:required="false" />
+    
+    <!-- ============== APPLICATION ============== -->
+    <application
+        android:allowBackup="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:ignore="GoogleAppIndexingWarning">
+        
+        <!-- 
+            IMPORTANT SECURITY SETTINGS:
+            - allowBackup="false" prevents backup of sensitive data
+            - networkSecurityConfig enables certificate pinning
+        -->
+        
+        <!-- No activities needed for SDK library -->
+        
+    </application>
     
 </manifest>
