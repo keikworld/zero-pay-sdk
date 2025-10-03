@@ -36,6 +36,8 @@ object FactorCanvasFactory {
             Factor.FACE -> FaceCanvas(onDone)
             Factor.WORDS -> WordsCanvas(onDone)
             Factor.IMAGE_TAP -> ImageTapCanvas(onDone)
+            Factor.MOUSE_DRAW -> MouseCanvas(onDone)
+            Factor.STYLUS_DRAW -> StylusCanvas(onDone)
         }
     }
 }
