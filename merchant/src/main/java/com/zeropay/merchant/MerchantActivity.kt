@@ -26,6 +26,15 @@ import com.zeropay.sdk.factors.FactorRegistry
 import kotlinx.coroutines.delay
 import java.security.MessageDigest
 
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.zeropay.sdk.errors.ErrorHandler
+import com.zeropay.sdk.errors.ErrorResult
+import com.zeropay.sdk.errors.FactorValidationException
+import com.zeropay.sdk.errors.FactorNotAvailableException
+import com.zeropay.sdk.errors.TamperingDetectedException
+import com.zeropay.sdk.errors.DataIntegrityException
+
 /**
  * MerchantActivity - Production-ready authentication flow
  * 
@@ -65,19 +74,27 @@ class MerchantActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Global crash handler (security: don't leak sensitive info)
+        // Initialize error handler with user-friendly messages
         Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
-            Log.e("ZeroPay", "Critical error: ${throwable.javaClass.simpleName}")
+            val errorResult = ErrorHandler.handle(throwable)
+            
+            Log.e("ZeroPay", "Error: ${errorResult.userMessage}")
+            
             runOnUiThread {
                 Toast.makeText(
                     this,
-                    "An error occurred. Please try again.",
-                    Toast.LENGTH_SHORT
+                    errorResult.userMessage,
+                    Toast.LENGTH_LONG
                 ).show()
                 setContent { InitialScreen() }
             }
         }
-        
+    
+        // Check device security
+        lifecycleScope.launch {
+            checkDeviceSecurity()
+        }
+    
         setContent { InitialScreen() }
     }
     
