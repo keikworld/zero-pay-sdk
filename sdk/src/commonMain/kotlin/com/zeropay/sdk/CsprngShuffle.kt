@@ -1,34 +1,66 @@
 package com.zeropay.sdk
 
 import com.zeropay.sdk.crypto.CryptoUtils
-import kotlin.random.Random
+import java.security.SecureRandom
 
+/**
+ * Cryptographically Secure Pseudo-Random Number Generator Shuffle
+ * 
+ * Uses SecureRandom for unpredictable factor ordering
+ * Prevents timing attacks and prediction
+ */
 object CsprngShuffle {
-
+    
+    private val secureRandom = SecureRandom()
+    
     /**
-     * Shuffles a list using a cryptographically secure random number generator.
-     * Uses HMAC-SHA256 with a secure random seed to derive the shuffle randomness.
+     * Fisher-Yates shuffle with CSPRNG
+     * 
+     * Security: Unpredictable order prevents:
+     * - Factor prediction
+     * - Timing attacks
+     * - Pattern analysis
      */
     fun <T> shuffle(list: List<T>): List<T> {
-        if (list.size <= 1) return list
+        val mutableList = list.toMutableList()
         
-        // Generate a secure random seed
-        val seed = CryptoUtils.secureRandomBytes(32)
-        
-        // Use current time as additional entropy
-        val timestamp = System.currentTimeMillis().toString().encodeToByteArray()
-        
-        // Derive a random seed using HMAC
-        val hmacResult = CryptoUtils.hmacSha256(seed, timestamp)
-        
-        // Create a Random instance from the HMAC output
-        // We'll use the first 8 bytes as a long seed
-        var randomSeed = 0L
-        for (i in 0 until 8) {
-            randomSeed = (randomSeed shl 8) or (hmacResult[i].toInt() and 0xFF).toLong()
+        // Fisher-Yates shuffle with SecureRandom
+        for (i in mutableList.size - 1 downTo 1) {
+            // Generate cryptographically secure random index
+            val j = secureRandom.nextInt(i + 1)
+            
+            // Swap
+            val temp = mutableList[i]
+            mutableList[i] = mutableList[j]
+            mutableList[j] = temp
         }
         
-        val random = Random(randomSeed)
-        return list.shuffled(random)
+        return mutableList
+    }
+    
+    /**
+     * Shuffle and take N elements
+     */
+    fun <T> shuffleAndTake(list: List<T>, count: Int): List<T> {
+        require(count <= list.size) { "Cannot take $count elements from list of size ${list.size}" }
+        return shuffle(list).take(count)
+    }
+    
+    /**
+     * Shuffle with seed (for testing only - DO NOT use in production)
+     */
+    @Deprecated("Only for testing", ReplaceWith("shuffle(list)"))
+    fun <T> shuffleWithSeed(list: List<T>, seed: Long): List<T> {
+        val testRandom = SecureRandom()
+        testRandom.setSeed(seed)
+        
+        val mutableList = list.toMutableList()
+        for (i in mutableList.size - 1 downTo 1) {
+            val j = testRandom.nextInt(i + 1)
+            val temp = mutableList[i]
+            mutableList[i] = mutableList[j]
+            mutableList[j] = temp
+        }
+        return mutableList
     }
 }
