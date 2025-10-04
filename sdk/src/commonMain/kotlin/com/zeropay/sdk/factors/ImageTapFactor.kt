@@ -1,5 +1,6 @@
 package com.zeropay.sdk.factors
 
+import com.zeropay.sdk.crypto.ConstantTime
 import com.zeropay.sdk.crypto.CryptoUtils
 
 /**
@@ -15,20 +16,20 @@ import com.zeropay.sdk.crypto.CryptoUtils
  * - User taps 2 locations during enrollment
  * - During authentication, must tap same locations (with tolerance)
  * - Image hash + tap coordinates create unique authentication
- * - Coordinates quantized to grid to allow fuzzy matching
+ * - Constant-time verification
+ * - Fuzzy matching with tolerance
+ * - Grid-based quantization
  * 
  * This implementation uses a GDPR-safe approach:
  * - Pre-approved abstract images only (no user uploads)
  * - No facial recognition or biometric analysis
  * - Only coordinate-based authentication
  */
+
 object ImageTapFactor {
     
-    // Grid size for coordinate quantization (more tolerance = easier auth)
-    private const val GRID_SIZE = 20 // Divide image into 20x20 grid
-    
-    // Tolerance for tap position (in grid cells)
-    private const val TAP_TOLERANCE = 2 // Allow 2 cells deviation
+    private const val GRID_SIZE = 20
+    private const val TAP_TOLERANCE = 2
     
     data class TapPoint(
         val x: Float,  // Normalized 0.0-1.0
@@ -37,16 +38,22 @@ object ImageTapFactor {
     )
     
     data class ImageInfo(
-        val imageId: String,      // Pre-approved image identifier
-        val imageHash: ByteArray  // SHA-256 of image data
-    )
+        val imageId: String,
+        val imageHash: ByteArray
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is ImageInfo) return false
+            return imageId == other.imageId && imageHash.contentEquals(other.imageHash)
+        }
+        
+        override fun hashCode(): Int {
+            return 31 * imageId.hashCode() + imageHash.contentHashCode()
+        }
+    }
     
     /**
      * Generate digest from tap points and image
-     * 
-     * @param tapPoints List of 2 tap locations (normalized 0.0-1.0)
-     * @param imageInfo Information about the image used
-     * @return SHA-256 hash (32 bytes)
      */
     fun digest(tapPoints: List<TapPoint>, imageInfo: ImageInfo): ByteArray {
         require(tapPoints.size == 2) { "Must have exactly 2 tap points" }
@@ -54,16 +61,16 @@ object ImageTapFactor {
             "Tap coordinates must be normalized (0.0-1.0)"
         }
         
-        // Quantize tap points to grid for tolerance
+        // Quantize tap points to grid
         val quantizedPoints = tapPoints.map { point ->
             quantizeToGrid(point.x, point.y)
         }
         
-        // Ensure points are different (at least 2 grid cells apart)
+        // Ensure points are different
         val distance = calculateGridDistance(quantizedPoints[0], quantizedPoints[1])
         require(distance >= 2) { "Tap points must be at least 2 grid cells apart" }
         
-        // Build digest from: image hash + quantized coordinates
+        // Build digest
         val bytes = mutableListOf<Byte>()
         
         // Add image hash
@@ -80,26 +87,23 @@ object ImageTapFactor {
     }
     
     /**
-     * Verify authentication taps against enrolled taps
-     * Allows tolerance for slight variations in tap location
+     * Verify with exact matching (constant-time)
      */
     fun verify(
         enrolledDigest: ByteArray,
         authTapPoints: List<TapPoint>,
         imageInfo: ImageInfo
     ): Boolean {
-        require(authTapPoints.size == 2) { "Must have exactly 2 tap points" }
-        
-        // Generate digest from auth taps
-        val authDigest = digest(authTapPoints, imageInfo)
-        
-        // Constant-time comparison
-        return constantTimeEquals(enrolledDigest, authDigest)
+        return try {
+            val authDigest = digest(authTapPoints, imageInfo)
+            ConstantTime.equals(enrolledDigest, authDigest)
+        } catch (e: Exception) {
+            false
+        }
     }
     
     /**
-     * Verify with fuzzy matching - allows small coordinate deviations
-     * Generates multiple candidate digests within tolerance range
+     * Verify with fuzzy matching (allows small deviations)
      */
     fun verifyFuzzy(
         enrolledDigest: ByteArray,
@@ -116,12 +120,11 @@ object ImageTapFactor {
         // Generate all possible candidate positions within tolerance
         val candidates = generateToleranceCandidates(authQuantized)
         
-        // Check if any candidate matches the enrolled digest
+        // Check if any candidate matches (constant-time for each check)
         for (candidate in candidates) {
             val candidateBytes = mutableListOf<Byte>()
             candidateBytes.addAll(imageInfo.imageHash.toList())
             
-            // Sort points for consistency
             val sortedPoints = candidate.sorted()
             sortedPoints.forEach { (gridX, gridY) ->
                 candidateBytes.add(gridX.toByte())
@@ -130,7 +133,7 @@ object ImageTapFactor {
             
             val candidateDigest = CryptoUtils.sha256(candidateBytes.toByteArray())
             
-            if (constantTimeEquals(enrolledDigest, candidateDigest)) {
+            if (ConstantTime.equals(enrolledDigest, candidateDigest)) {
                 return true
             }
         }
@@ -140,7 +143,6 @@ object ImageTapFactor {
     
     /**
      * Get list of pre-approved GDPR-safe images
-     * These are abstract patterns, not personal photos
      */
     fun getApprovedImages(): List<ImageInfo> {
         return listOf(
@@ -168,54 +170,39 @@ object ImageTapFactor {
     }
     
     /**
-     * Validate image is GDPR-compliant (no faces, no personal data)
-     * In production, this would use ML to detect faces/people
+     * Validate image is GDPR-compliant
      */
     fun isGDPRCompliant(imageData: ByteArray): Boolean {
-        // TODO: Implement face detection / people detection
-        // For now, only allow pre-approved images
         val imageHash = CryptoUtils.sha256(imageData)
         val approvedHashes = getApprovedImages().map { it.imageHash }
         
         return approvedHashes.any { approvedHash ->
-            constantTimeEquals(imageHash, approvedHash)
+            ConstantTime.equals(imageHash, approvedHash)
         }
     }
     
     // ============== Private Helper Methods ==============
     
-    /**
-     * Quantize coordinates to grid cell
-     */
     private fun quantizeToGrid(x: Float, y: Float): Pair<Int, Int> {
         val gridX = (x * GRID_SIZE).toInt().coerceIn(0, GRID_SIZE - 1)
         val gridY = (y * GRID_SIZE).toInt().coerceIn(0, GRID_SIZE - 1)
         return gridX to gridY
     }
     
-    /**
-     * Calculate Manhattan distance between two grid points
-     */
     private fun calculateGridDistance(p1: Pair<Int, Int>, p2: Pair<Int, Int>): Int {
         return kotlin.math.abs(p1.first - p2.first) + kotlin.math.abs(p1.second - p2.second)
     }
     
-    /**
-     * Generate all candidate tap positions within tolerance
-     */
     private fun generateToleranceCandidates(
         quantizedPoints: List<Pair<Int, Int>>
     ): List<List<Pair<Int, Int>>> {
         val candidates = mutableListOf<List<Pair<Int, Int>>>()
         
-        // Generate variants for each point within tolerance
         val point1Variants = generatePointVariants(quantizedPoints[0], TAP_TOLERANCE)
         val point2Variants = generatePointVariants(quantizedPoints[1], TAP_TOLERANCE)
         
-        // Combine all variants
         for (p1 in point1Variants) {
             for (p2 in point2Variants) {
-                // Ensure points are different
                 if (calculateGridDistance(p1, p2) >= 2) {
                     candidates.add(listOf(p1, p2))
                 }
@@ -225,9 +212,6 @@ object ImageTapFactor {
         return candidates
     }
     
-    /**
-     * Generate point variants within tolerance radius
-     */
     private fun generatePointVariants(
         point: Pair<Int, Int>,
         tolerance: Int
@@ -243,18 +227,5 @@ object ImageTapFactor {
         }
         
         return variants
-    }
-    
-    /**
-     * Constant-time byte array comparison
-     */
-    private fun constantTimeEquals(a: ByteArray, b: ByteArray): Boolean {
-        if (a.size != b.size) return false
-        
-        var result = 0
-        for (i in a.indices) {
-            result = result or (a[i].toInt() xor b[i].toInt())
-        }
-        return result == 0
     }
 }
