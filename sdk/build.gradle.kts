@@ -1,6 +1,6 @@
 /*
- * ZeroPay SDK - Complete Gradle Configuration
- * Production-ready with all security dependencies
+ * ZeroPay SDK - Kotlin Multiplatform Configuration
+ * Supports: Android, iOS, Web
  */
 
 plugins {
@@ -11,15 +11,42 @@ plugins {
 }
 
 kotlin {
-    android {
+    // ============== ANDROID TARGET (FIXED: using androidTarget()) ==============
+    androidTarget {
         compilations.all {
             kotlinOptions {
                 jvmTarget = "17"
+                
+                // Compiler arguments for Android
+                freeCompilerArgs += listOf(
+                    "-Xopt-in=kotlin.RequiresOptIn",
+                    "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+                    "-Xopt-in=kotlinx.coroutines.FlowPreview"
+                )
             }
         }
     }
     
+    // ============== iOS TARGETS (OPTIONAL) ==============
+    // Uncomment if you want iOS support
+    /*
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
+    */
+    
+    // ============== JS/WASM TARGET (OPTIONAL) ==============
+    // Uncomment if you want Web support
+    /*
+    js(IR) {
+        browser()
+        nodejs()
+    }
+    */
+    
+    // ============== SOURCE SETS ==============
     sourceSets {
+        // -------- Common (Shared) --------
         val commonMain by getting {
             dependencies {
                 implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
@@ -39,6 +66,7 @@ kotlin {
             }
         }
         
+        // -------- Android --------
         val androidMain by getting {
             dependencies {
                 // AndroidX Core
@@ -137,9 +165,33 @@ kotlin {
                 implementation("androidx.test:core-ktx:1.5.0")
             }
         }
+        
+        // -------- iOS (OPTIONAL) --------
+        /*
+        val iosX64Main by getting
+        val iosArm64Main by getting
+        val iosSimulatorArm64Main by getting
+        val iosMain by creating {
+            dependsOn(commonMain)
+            iosX64Main.dependsOn(this)
+            iosArm64Main.dependsOn(this)
+            iosSimulatorArm64Main.dependsOn(this)
+        }
+        
+        val iosX64Test by getting
+        val iosArm64Test by getting
+        val iosSimulatorArm64Test by getting
+        val iosTest by creating {
+            dependsOn(commonTest)
+            iosX64Test.dependsOn(this)
+            iosArm64Test.dependsOn(this)
+            iosSimulatorArm64Test.dependsOn(this)
+        }
+        */
     }
 }
 
+// ============== ANDROID CONFIGURATION ==============
 android {
     namespace = "com.zeropay.sdk"
     compileSdk = 34
@@ -148,7 +200,6 @@ android {
     
     defaultConfig {
         minSdk = 26  // Android 8.0 (required for KeyStore features)
-        targetSdk = 34
         
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
@@ -168,17 +219,6 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
     
-    kotlinOptions {
-        jvmTarget = "17"
-        
-        // Enable explicit API mode for library
-        freeCompilerArgs += listOf(
-            "-Xopt-in=kotlin.RequiresOptIn",
-            "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
-            "-Xopt-in=kotlinx.coroutines.FlowPreview"
-        )
-    }
-    
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -188,30 +228,21 @@ android {
                 "proguard-rules.pro"
             )
             
-            // Disable debugging in release
-            isDebuggable = false
+            // REMOVED: isDebuggable (not available in library modules)
+            // Library modules inherit debuggable state from consuming app
             isJniDebuggable = false
-            
-            // Optimize build
-            isShrinkResources = false  // Set to true if you have resources
         }
         
         debug {
             isMinifyEnabled = false
-            isDebuggable = true
+            
+            // REMOVED: isDebuggable (not available in library modules)
             
             // Debug ProGuard rules (optional)
             proguardFiles(
                 getDefaultProguardFile("proguard-android.txt"),
                 "proguard-rules.pro"
             )
-        }
-        
-        // Create a 'staging' build type (optional)
-        create("staging") {
-            initWith(getByName("release"))
-            isDebuggable = true
-            applicationIdSuffix = ".staging"
         }
     }
     
@@ -260,22 +291,12 @@ android {
             isIncludeAndroidResources = true
             isReturnDefaultValues = true
         }
-        
-        // Enable test coverage
-        unitTests.all {
-            it.useJUnitPlatform()  // If using JUnit 5
-        }
     }
 }
 
 dependencies {
     // Desugaring library for Java 8+ APIs on older Android
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
-    
-    // Additional Android dependencies that can't go in sourceSets
-    
-    // Annotation processors (if any)
-    // kapt("...")  // Add if using Kapt
     
     // Debug-only dependencies
     debugImplementation("androidx.compose.ui:ui-tooling:1.5.4")
@@ -289,13 +310,6 @@ tasks.withType<org.jetbrains.dokka.gradle.DokkaTask>().configureEach {
     dokkaSourceSets {
         named("commonMain") {
             includes.from("Module.md")
-            sourceLink {
-                localDirectory.set(file("src/commonMain/kotlin"))
-                remoteUrl.set(
-                    java.net.URL("https://github.com/yourusername/zeropay-sdk/tree/main/sdk/src/commonMain/kotlin")
-                )
-                remoteLineSuffix.set("#L")
-            }
         }
     }
 }
@@ -303,96 +317,19 @@ tasks.withType<org.jetbrains.dokka.gradle.DokkaTask>().configureEach {
 // Task to print dependencies (useful for debugging)
 tasks.register("printDependencies") {
     doLast {
-        configurations.getByName("androidMainImplementation").dependencies.forEach {
+        println("\n=== Common Dependencies ===")
+        configurations.findByName("commonMainImplementation")?.dependencies?.forEach {
+            println("${it.group}:${it.name}:${it.version}")
+        }
+        
+        println("\n=== Android Dependencies ===")
+        configurations.findByName("androidMainImplementation")?.dependencies?.forEach {
             println("${it.group}:${it.name}:${it.version}")
         }
     }
 }
 
-// Task to check for dependency updates
-tasks.register("dependencyUpdates") {
-    doLast {
-        println("Run: ./gradlew dependencyUpdates to check for updates")
-        println("Requires: id(\"com.github.ben-manes.versions\") version \"0.50.0\" in plugins")
-    }
-}
-
-// Ensure all tests run before publishing
-tasks.named("publish") {
-    dependsOn("test", "connectedAndroidTest")
-}
-
-// ============== MAVEN PUBLISHING (OPTIONAL) ==============
-
-/*
-// Uncomment if you want to publish to Maven
-apply(plugin = "maven-publish")
-
-publishing {
-    publications {
-        create<MavenPublication>("release") {
-            from(components["release"])
-            
-            groupId = "com.zeropay"
-            artifactId = "zeropay-sdk"
-            version = "1.0.0"
-            
-            pom {
-                name.set("ZeroPay SDK")
-                description.set("Multi-factor authentication SDK with zero-knowledge proofs")
-                url.set("https://github.com/yourusername/zeropay-sdk")
-                
-                licenses {
-                    license {
-                        name.set("MIT License")
-                        url.set("https://opensource.org/licenses/MIT")
-                    }
-                }
-                
-                developers {
-                    developer {
-                        id.set("yourusername")
-                        name.set("Your Name")
-                        email.set("you@example.com")
-                    }
-                }
-                
-                scm {
-                    connection.set("scm:git:git://github.com/yourusername/zeropay-sdk.git")
-                    developerConnection.set("scm:git:ssh://github.com/yourusername/zeropay-sdk.git")
-                    url.set("https://github.com/yourusername/zeropay-sdk")
-                }
-            }
-        }
-    }
-    
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/yourusername/zeropay-sdk")
-            credentials {
-                username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
-                password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
-            }
-        }
-    }
-}
-*/
-
-// ============== BUILD CACHE ==============
-
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-// Enable Gradle build cache
-buildCache {
-    local {
-        isEnabled = true
-        directory = File(rootDir, ".gradle/build-cache")
-        removeUnusedEntriesAfterDays = 7
-    }
+// Ensure all tests run before assembling
+tasks.named("assemble") {
+    dependsOn("test")
 }
