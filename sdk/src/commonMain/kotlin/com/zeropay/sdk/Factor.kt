@@ -1,49 +1,34 @@
 package com.zeropay.sdk
 
 /**
- * Enumeration of all available authentication factors.
+ * Authentication Factor Types
  * 
- * Updated to include:
- * - WORDS: 4-word selection authentication
- * - IMAGE_TAP: Tap 2 locations on an image (GDPR-compliant)
+ * PSD3 SCA Categories:
+ * - Knowledge: Something you know (PIN, Password, Words)
+ * - Possession: Something you have (Device, Token)
+ * - Inherence: Something you are (Biometrics, Behavioral)
  */
-enum class Factor {
-    /** Pattern authentication with micro-timing analysis */
-    PATTERN_MICRO,
+enum class Factor(val category: Category) {
+    // Knowledge factors
+    PIN(Category.KNOWLEDGE),
+    COLOUR(Category.KNOWLEDGE),
+    EMOJI(Category.KNOWLEDGE),
+    WORDS(Category.KNOWLEDGE),
     
-    /** Pattern authentication with normalized timing */
-    PATTERN_NORMAL,
+    // Behavioral factors (inherence)
+    PATTERN(Category.INHERENCE),
+    MOUSE(Category.INHERENCE),
+    STYLUS(Category.INHERENCE),
+    VOICE(Category.INHERENCE),
+    IMAGE_TAP(Category.INHERENCE),
     
-    /** Mouse drawing biometrics */
-    MOUSE_DRAW,
+    // Biometric factors (inherence) - Week 3+
+    FINGERPRINT(Category.INHERENCE),
+    FACE(Category.INHERENCE);
     
-    /** Stylus drawing biometrics with pressure */
-    STYLUS_DRAW,
-    
-    /** Colour sequence selection */
-    COLOUR,
-    
-    /** Emoji sequence selection */
-    EMOJI,
-    
-    /** 4-word selection authentication (new) */
-    WORDS,
-    
-    /** Image tap authentication - tap 2 locations (new, GDPR-compliant) */
-    IMAGE_TAP,
-    
-    /** PIN code authentication */
-    PIN,
-    
-    /** NFC tag authentication */
-    NFC,
-    
-    /** Balance/accelerometer authentication */
-    BALANCE,
-    
-    /** Face recognition authentication */
-    FACE,
-    
-    /** Voice authentication */
-    VOICE
+    enum class Category {
+        KNOWLEDGE,   // Something you know
+        POSSESSION,  // Something you have
+        INHERENCE    // Something you are
+    }
 }
