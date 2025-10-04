@@ -1,41 +1,56 @@
 package com.zeropay.sdk.factors
 
+import com.zeropay.sdk.crypto.ConstantTime
 import com.zeropay.sdk.crypto.CryptoUtils
+import java.util.Arrays
 
+/**
+ * Pattern Factor with Constant-Time Verification
+ * 
+ * Security Features:
+ * - Constant-time verification
+ * - Memory wiping
+ * - DoS protection (max points)
+ * - Timing normalization
+ */
 object PatternFactor {
 
     data class PatternPoint(val x: Float, val y: Float, val t: Long)
 
+    private const val MAX_POINTS = 300
+
     /**
-     * Generates a digest from pattern data including micro-timing.
-     * Captures x, y coordinates and precise timestamps.
+     * Generate digest with micro-timing (includes precise timestamps)
      */
     fun digestMicroTiming(points: List<PatternPoint>): ByteArray {
         require(points.isNotEmpty()) { "Points list cannot be empty" }
+        require(points.size <= MAX_POINTS) { "Too many points (max: $MAX_POINTS)" }
         
         val bytes = mutableListOf<Byte>()
         
-        for (point in points) {
-            bytes.addAll(CryptoUtils.floatToBytes(point.x).toList())
-            bytes.addAll(CryptoUtils.floatToBytes(point.y).toList())
-            bytes.addAll(CryptoUtils.longToBytes(point.t).toList())
+        try {
+            for (point in points) {
+                bytes.addAll(CryptoUtils.floatToBytes(point.x).toList())
+                bytes.addAll(CryptoUtils.floatToBytes(point.y).toList())
+                bytes.addAll(CryptoUtils.longToBytes(point.t).toList())
+            }
+            
+            return CryptoUtils.sha256(bytes.toByteArray())
+        } finally {
+            // Clear sensitive data
+            bytes.clear()
         }
-        
-        return CryptoUtils.sha256(bytes.toByteArray())
     }
 
     /**
-     * Generates a digest from pattern data with normalized timing.
-     * Timing is normalized to a 0-1000 scale relative to the gesture duration.
-     * This makes the digest more resistant to variations in gesture speed.
+     * Generate digest with normalized timing (speed-invariant)
      */
     fun digestNormalisedTiming(points: List<PatternPoint>): ByteArray {
-        if (points.isEmpty()) {
-            return ByteArray(0)
-        }
+        require(points.isNotEmpty()) { "Points list cannot be empty" }
+        require(points.size <= MAX_POINTS) { "Too many points (max: $MAX_POINTS)" }
         
         if (points.size == 1) {
-            // Single point, no timing to normalize
+            // Single point - no timing to normalize
             val bytes = mutableListOf<Byte>()
             bytes.addAll(CryptoUtils.floatToBytes(points[0].x).toList())
             bytes.addAll(CryptoUtils.floatToBytes(points[0].y).toList())
@@ -49,15 +64,43 @@ object PatternFactor {
         
         val bytes = mutableListOf<Byte>()
         
-        for (point in points) {
-            // Normalize time to 0-1000 scale
-            val normalizedTime = ((point.t - t0).toFloat() / duration) * 1000f
+        try {
+            for (point in points) {
+                // Normalize time to 0-1000 scale
+                val normalizedTime = ((point.t - t0).toFloat() / duration) * 1000f
+                
+                bytes.addAll(CryptoUtils.floatToBytes(point.x).toList())
+                bytes.addAll(CryptoUtils.floatToBytes(point.y).toList())
+                bytes.addAll(CryptoUtils.floatToBytes(normalizedTime).toList())
+            }
             
-            bytes.addAll(CryptoUtils.floatToBytes(point.x).toList())
-            bytes.addAll(CryptoUtils.floatToBytes(point.y).toList())
-            bytes.addAll(CryptoUtils.floatToBytes(normalizedTime).toList())
+            return CryptoUtils.sha256(bytes.toByteArray())
+        } finally {
+            bytes.clear()
         }
-        
-        return CryptoUtils.sha256(bytes.toByteArray())
+    }
+    
+    /**
+     * Verify pattern (constant-time)
+     */
+    fun verifyMicroTiming(points: List<PatternPoint>, storedDigest: ByteArray): Boolean {
+        return try {
+            val computed = digestMicroTiming(points)
+            ConstantTime.equals(computed, storedDigest)
+        } catch (e: Exception) {
+            false
+        }
+    }
+    
+    /**
+     * Verify normalized pattern (constant-time)
+     */
+    fun verifyNormalised(points: List<PatternPoint>, storedDigest: ByteArray): Boolean {
+        return try {
+            val computed = digestNormalisedTiming(points)
+            ConstantTime.equals(computed, storedDigest)
+        } catch (e: Exception) {
+            false
+        }
     }
 }
