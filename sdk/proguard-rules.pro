@@ -141,4 +141,103 @@
 # Rename source file attribute to hide real file names
 -renamesourcefileattribute SourceFile
 
+# ============== Bouncy Castle (Argon2) ==============
+-keep class org.bouncycastle.** { *; }
+-dontwarn org.bouncycastle.**
+-dontnote org.bouncycastle.**
+
+# Keep Argon2 implementation
+-keep class org.bouncycastle.crypto.generators.Argon2BytesGenerator { *; }
+-keep class org.bouncycastle.crypto.params.Argon2Parameters { *; }
+-keep class org.bouncycastle.crypto.params.Argon2Parameters$Builder { *; }
+
+# ============== Signal Protocol ==============
+-keep class org.signal.libsignal.** { *; }
+-dontwarn org.signal.libsignal.**
+-dontnote org.signal.libsignal.**
+
+# Keep Signal Protocol implementations
+-keep class org.signal.libsignal.protocol.** { *; }
+-keep class org.signal.libsignal.protocol.state.** { *; }
+-keep class org.signal.libsignal.protocol.util.** { *; }
+
+# ============== ConstantTime Operations ==============
+# CRITICAL: Do NOT optimize constant-time operations
+-keep class com.zeropay.sdk.crypto.ConstantTime { *; }
+-keepclassmembers class com.zeropay.sdk.crypto.ConstantTime {
+    public static *** equals(...);
+    public static *** select(...);
+    public static *** isZero(...);
+}
+
+# ============== Key Derivation ==============
+-keep class com.zeropay.sdk.crypto.KeyDerivation { *; }
+-keep class com.zeropay.sdk.crypto.KeyDerivation$DerivedKey { *; }
+-keepclassmembers class com.zeropay.sdk.crypto.KeyDerivation$DerivedKey {
+    public <fields>;
+    public <methods>;
+}
+
+# ============== Security Config ==============
+-keep class com.zeropay.sdk.config.SecurityConfig { *; }
+-keep class com.zeropay.sdk.config.SecurityConfig$* { *; }
+-keepclassmembers class com.zeropay.sdk.config.SecurityConfig$* {
+    public <fields>;
+    public <methods>;
+}
+
+# ============== Updated Factor Classes ==============
+-keep class com.zeropay.sdk.factors.PinFactor { *; }
+-keep class com.zeropay.sdk.factors.ColourFactor { *; }
+-keep class com.zeropay.sdk.factors.EmojiFactor { *; }
+-keep class com.zeropay.sdk.factors.PatternFactor { *; }
+-keep class com.zeropay.sdk.factors.MouseFactor { *; }
+-keep class com.zeropay.sdk.factors.StylusFactor { *; }
+-keep class com.zeropay.sdk.factors.VoiceFactor { *; }
+-keep class com.zeropay.sdk.factors.ImageTapFactor { *; }
+
+# Keep factor data classes
+-keep class com.zeropay.sdk.factors.*.* { *; }
+-keepclassmembers class com.zeropay.sdk.factors.*.* {
+    public <fields>;
+}
+
+# ============== RateLimiter (Thread-safe) ==============
+-keep class com.zeropay.sdk.RateLimiter { *; }
+-keep class com.zeropay.sdk.RateLimiter$* { *; }
+-keepclassmembers class com.zeropay.sdk.RateLimiter {
+    private static ** rwLock;
+    private static ** attempts;
+    private static ** cooldownStart;
+    private static ** timestamps;
+}
+
+# ============== Concurrent Collections ==============
+-keep class java.util.concurrent.** { *; }
+-keep class java.util.concurrent.locks.** { *; }
+-dontwarn java.util.concurrent.**
+
+# Keep AtomicLong for thread-safety
+-keep class java.util.concurrent.atomic.AtomicLong { *; }
+-keep class java.util.concurrent.ConcurrentHashMap { *; }
+-keep class java.util.concurrent.locks.ReentrantReadWriteLock { *; }
+
+# ============== Optimization Exceptions ==============
+# CRITICAL: Do NOT optimize these classes (timing attacks)
+-keep,allowoptimization,allowobfuscation class com.zeropay.sdk.crypto.ConstantTime
+-keep,allowoptimization,allowobfuscation class com.zeropay.sdk.crypto.KeyDerivation
+-keep,allowoptimization,allowobfuscation class com.zeropay.sdk.factors.PinFactor
+
+# Do NOT inline constant-time methods
+-keep,allowshrinking class com.zeropay.sdk.crypto.ConstantTime {
+    public static *** equals(...);
+}
+
+# ============== Memory Safety ==============
+# Keep Arrays.fill() for memory wiping
+-keep class java.util.Arrays {
+    public static void fill(byte[], byte);
+    public static void fill(int[], int);
+}
+
 # ============== End of ZeroPay SDK ProGuard Rules ==============
