@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ZeroPay Enrollment</string>
+    <string name="select_factors">Select Authentication Factors</string>
+    <string name="min_factors_required">Choose at least 2 factors</string>
+    <string name="continue_button">Continue</string>
+    <string name="enrollment_success">Enrollment Successful!</string>
+    <string name="enrollment_failed">Enrollment Failed</string>
+</resources>
