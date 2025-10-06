@@ -1,6 +1,32 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.multiplatform")
+    id("org.jetbrains.kotlin.plugin.compose") version "1.9.22"
+}
+
+kotlin {
+    androidTarget()
+    
+    sourceSets {
+        val commonMain by getting {
+            dependencies {
+                implementation(project(":sdk"))
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+            }
+        }
+        
+        val androidMain by getting {
+            dependencies {
+                implementation("androidx.core:core-ktx:1.12.0")
+                implementation("androidx.activity:activity-compose:1.8.2")
+                implementation("androidx.compose.ui:ui:1.6.0")
+                implementation("androidx.compose.material3:material3:1.2.0")
+                implementation("androidx.compose.ui:ui-tooling-preview:1.6.0")
+                implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+                implementation("androidx.security:security-crypto:1.1.0-alpha06")
+            }
+        }
+    }
 }
 
 android {
@@ -25,6 +51,11 @@ android {
         }
     }
     
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    
     buildFeatures {
         compose = true
     }
@@ -32,35 +63,4 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.3"
     }
-}
-
-dependencies {
-    // ZeroPay SDK
-    implementation(project(":sdk"))
-    
-    // AndroidX
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
-    implementation("androidx.activity:activity-compose:1.8.2")
-    
-    // Compose
-    implementation(platform("androidx.compose:compose-bom:2024.02.00"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    
-    // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    
-    // Security
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
-    
-    // Network
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("org.json:json:20231013")
-    
-    // Testing
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }
