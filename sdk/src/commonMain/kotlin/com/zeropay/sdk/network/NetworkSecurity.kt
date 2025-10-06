@@ -259,6 +259,106 @@ class SecureApiClient(
                 errorMessage = e.message
             )
         }
+        /**
+     * Generic POST request
+     */
+    suspend fun post(
+        url: String,
+        body: ByteArray,
+        contentType: String = "application/json"
+    ): ApiResponse = withContext(Dispatchers.IO) {
+        val nonce = NonceManager.generateNonce()
+        val timestamp = System.currentTimeMillis()
+        
+        val requestBody = body.toRequestBody(contentType.toMediaType())
+        
+        val request = Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .header("X-Nonce", nonce)
+            .header("X-Timestamp", timestamp.toString())
+            .header("X-API-Version", "1.0")
+            .build()
+        
+        val response = client.newCall(request).execute()
+        
+        if (response.isSuccessful) {
+            ApiResponse(
+                success = true,
+                data = response.body?.bytes(),
+                errorMessage = null
+            )
+        } else {
+            ApiResponse(
+                success = false,
+                data = null,
+                errorMessage = "HTTP ${response.code}: ${response.message}"
+            )
+        }
+    }
+    
+    /**
+     * Generic GET request
+     */
+    suspend fun get(url: String): ApiResponse = withContext(Dispatchers.IO) {
+        val nonce = NonceManager.generateNonce()
+        val timestamp = System.currentTimeMillis()
+        
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .header("X-Nonce", nonce)
+            .header("X-Timestamp", timestamp.toString())
+            .header("X-API-Version", "1.0")
+            .build()
+        
+        val response = client.newCall(request).execute()
+        
+        if (response.isSuccessful) {
+            ApiResponse(
+                success = true,
+                data = response.body?.bytes(),
+                errorMessage = null
+            )
+        } else {
+            ApiResponse(
+                success = false,
+                data = null,
+                errorMessage = "HTTP ${response.code}: ${response.message}"
+            )
+        }
+    }
+    
+    /**
+     * Generic DELETE request
+     */
+    suspend fun delete(url: String): ApiResponse = withContext(Dispatchers.IO) {
+        val nonce = NonceManager.generateNonce()
+        val timestamp = System.currentTimeMillis()
+        
+        val request = Request.Builder()
+            .url(url)
+            .delete()
+            .header("X-Nonce", nonce)
+            .header("X-Timestamp", timestamp.toString())
+            .header("X-API-Version", "1.0")
+            .build()
+        
+        val response = client.newCall(request).execute()
+        
+        if (response.isSuccessful) {
+            ApiResponse(
+                success = true,
+                data = response.body?.bytes(),
+                errorMessage = null
+            )
+        } else {
+            ApiResponse(
+                success = false,
+                data = null,
+                errorMessage = "HTTP ${response.code}: ${response.message}"
+            )
+        }
     }
     
     /**
