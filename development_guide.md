@@ -326,3 +326,29 @@ throw FactorNotAvailableException(
 
 // ❌ BAD: Technical jargon
 throw Exception("android.
+
+## 9. Enrollment Flow Architecture
+
+### Complete User Journey
+[Diagram showing: UUID generation → Factor selection → Digest generation → 
+ Local encryption → Redis cache → Confirmation]
+
+### Code Example
+[Full enrollment flow code snippet]
+
+## 10. Backend API Specification
+
+### Endpoints
+- POST /v1/enrollment/store
+- GET /v1/enrollment/retrieve/:uuid
+- DELETE /v1/enrollment/delete/:uuid
+
+[Include request/response examples]
+
+## 11. Redis Cache Integration
+
+### TTL Management
+[24-hour expiration logic]
+
+### Security Considerations
+[Encryption at rest, SSL in transit]
