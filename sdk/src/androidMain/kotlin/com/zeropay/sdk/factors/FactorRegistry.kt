@@ -16,6 +16,7 @@ object FactorRegistry {
         list += Factor.VOICE
         list += Factor.WORDS
         list += Factor.IMAGE_TAP  // If pre-approved images available
+        list += Factor.RHYTHM_TAP
 
         // Android hardware-specific factors
         if (context.packageManager.hasSystemFeature("android.hardware.nfc")) {
