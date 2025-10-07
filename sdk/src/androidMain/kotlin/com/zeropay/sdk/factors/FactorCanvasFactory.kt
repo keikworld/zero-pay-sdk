@@ -192,6 +192,24 @@ object FactorCanvasFactory {
                     onDone = onDone
                 )
             }
+
+            /**
+             * Rhythm Tap Canvas - Behavioral biometric
+             * User taps 4-6 times in a rhythm
+             * Captures millisecond-level timing between taps
+             * Output: SHA-256 hash (32 bytes)
+             * 
+             * Security: Timing variations create high entropy
+             * UX: Fun, intuitive (like tapping to music)
+             * Accessibility: No fine motor skills needed
+             */
+            Factor.RHYTHM_TAP -> {
+                RhythmTapCanvas(
+                    onDone = onDone,
+                    modifier = modifier
+                )
+            }
+
             
             // ==================== POSSESSION FACTORS ====================
             
