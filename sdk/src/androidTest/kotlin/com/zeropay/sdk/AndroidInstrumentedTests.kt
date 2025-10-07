@@ -245,4 +245,16 @@ class AndroidInstrumentedTests {
         assertTrue("1000 SHA-256 digests should complete in < 1 second (actual: ${elapsedTime}ms)",
             elapsedTime < 1000)
     }
+    
+    @Test
+    fun testFactorRegistry_RhythmTapAlwaysAvailable() {
+        // Act
+        val factors = FactorRegistry.availableFactors(context)
+        
+        // Assert
+        assertTrue(
+            "RHYTHM_TAP should always be available (no special hardware required)", 
+            factors.contains(Factor.RHYTHM_TAP)
+        )
+    }
 }
