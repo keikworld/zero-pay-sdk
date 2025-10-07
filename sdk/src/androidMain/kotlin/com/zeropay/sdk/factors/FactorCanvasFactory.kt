@@ -315,6 +315,7 @@ object FactorCanvasFactory {
             Factor.COLOUR -> "Tap colors in the sequence you chose during enrollment"
             Factor.EMOJI -> "Select your 4 emojis in the correct order"
             Factor.WORDS -> "Find and tap your 4 words from the grid"
+            Factor.RHYTHM_TAP -> "Tap 4-6 times in your own rhythm - like tapping to a beat"
             
             Factor.PATTERN_MICRO -> "Draw your pattern carefully - timing matters"
             Factor.PATTERN_NORMAL -> "Draw your pattern at any speed"
@@ -344,6 +345,7 @@ object FactorCanvasFactory {
             Factor.COLOUR -> "Pick colors that have personal meaning but aren't obvious"
             Factor.EMOJI -> "Choose emojis you'll remember easily"
             Factor.WORDS -> "Select words that form a memorable story or phrase"
+            Factor.RHYTHM_TAP -> "Vary your tap timing - don't tap evenly like a metronome" 
             
             Factor.PATTERN_MICRO, Factor.PATTERN_NORMAL -> 
                 "Draw naturally - your unique drawing style is part of security"
