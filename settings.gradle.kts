@@ -15,5 +15,5 @@ dependencyResolutionManagement {
 rootProject.name = "ZeroPay"
 include(":sdk")
 include(":merchant")
-include(":online-web") 
+//include(":online-web")//
 include(":enrollment") 

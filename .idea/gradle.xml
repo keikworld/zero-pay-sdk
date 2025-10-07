@@ -10,8 +10,8 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/enrollment" />
             <option value="$PROJECT_DIR$/merchant" />
-            <option value="$PROJECT_DIR$/online-web" />
             <option value="$PROJECT_DIR$/sdk" />
           </set>
         </option>
