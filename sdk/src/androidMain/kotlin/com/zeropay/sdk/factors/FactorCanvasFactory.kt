@@ -287,6 +287,7 @@ object FactorCanvasFactory {
             Factor.FINGERPRINT -> 3_000L
             Factor.FACE -> 3_000L
             Factor.NFC -> 2_000L
+            Factor.RHYTHM_TAP -> 5_000L
             
             // Medium factors (10-30 seconds)
             Factor.PATTERN_MICRO -> 15_000L
