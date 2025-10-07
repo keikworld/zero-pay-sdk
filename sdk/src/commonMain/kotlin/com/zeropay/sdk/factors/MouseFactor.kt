@@ -1,54 +1,30 @@
 package com.zeropay.sdk.factors
 
-import com.zeropay.sdk.crypto.ConstantTime
 import com.zeropay.sdk.crypto.CryptoUtils
-import java.util.Arrays
 
 /**
- * Mouse Factor with Constant-Time Verification
+ * Mouse Draw Factor - Logic Layer
  * 
- * Security:
- * - Constant-time verification
- * - Memory wiping
- * - DoS protection
+ * Captures mouse drawing patterns with timing analysis
+ * Security: Mouse velocity/acceleration patterns are biometric
  */
 object MouseFactor {
-
+    
     data class MousePoint(val x: Float, val y: Float, val t: Long)
     
-    private const val MAX_POINTS = 300
-
-    /**
-     * Generate digest from mouse movement with micro-timing
-     */
     fun digestMicroTiming(points: List<MousePoint>): ByteArray {
-        require(points.isNotEmpty()) { "Points list cannot be empty" }
-        require(points.size <= MAX_POINTS) { "Too many points (max: $MAX_POINTS)" }
+        require(points.isNotEmpty()) { "Mouse points cannot be empty" }
+        require(points.size >= 3) { "Need at least 3 points for mouse pattern" }
         
         val bytes = mutableListOf<Byte>()
         
-        try {
-            for (point in points) {
-                bytes.addAll(CryptoUtils.floatToBytes(point.x).toList())
-                bytes.addAll(CryptoUtils.floatToBytes(point.y).toList())
-                bytes.addAll(CryptoUtils.longToBytes(point.t).toList())
-            }
-            
-            return CryptoUtils.sha256(bytes.toByteArray())
-        } finally {
-            bytes.clear()
+        // Include position and timing
+        points.forEach { point ->
+            bytes.addAll(CryptoUtils.floatToBytes(point.x).toList())
+            bytes.addAll(CryptoUtils.floatToBytes(point.y).toList())
+            bytes.addAll(CryptoUtils.longToBytes(point.t).toList())
         }
-    }
-    
-    /**
-     * Verify mouse pattern (constant-time)
-     */
-    fun verify(points: List<MousePoint>, storedDigest: ByteArray): Boolean {
-        return try {
-            val computed = digestMicroTiming(points)
-            ConstantTime.equals(computed, storedDigest)
-        } catch (e: Exception) {
-            false
-        }
+        
+        return CryptoUtils.sha256(bytes.toByteArray())
     }
 }
