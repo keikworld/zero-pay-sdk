@@ -248,7 +248,48 @@ enum class Factor(
         convenienceLevel = ConvenienceLevel.MEDIUM,
         requiresHardware = true // Accelerometer
     ),
+
+    /**
+     * Rhythm Tap Authentication
+     * Security: Medium-High (timing variations create ~10^6 combinations)
+     * Convenience: Very High (3-5s, intuitive, fun)
+     * PSD3: Inherence factor (behavioral biometric)
+     * 
+     * GDPR Compliance:
+     * - Only interval timing stored as irreversible hash
+     * - No audio recording or precise biometric data
+     * - User taps a simple rhythm (4-6 taps)
+     * - Intervals hashed with nonce for replay protection
+     * 
+     * Security Features:
+     * - High entropy from millisecond-level interval variations
+     * - Behavioral biometric (hard to replicate exact timing)
+     * - Constant-time verification
+     * - Memory wiping after digest generation
+     * 
+     * Use Cases:
+     * - Fun, intuitive authentication (like tapping to music)
+     * - Low cognitive load (no memorization required)
+     * - Accessible (no fine motor skills needed)
+     * - Quick (3-5 second input)
+     * 
+     * Recommended Combinations:
+     * - RHYTHM_TAP + PIN (high security)
+     * - RHYTHM_TAP + EMOJI (balanced)
+     * - RHYTHM_TAP + FINGERPRINT (very high security)
+     */
+    RHYTHM_TAP(
+        category = Category.INHERENCE,
+        displayName = "Rhythm Tap",
+        description = "Tap a simple rhythm (4-6 taps)",
+        icon = "🎵",
+        securityLevel = SecurityLevel.MEDIUM_HIGH,
+        convenienceLevel = ConvenienceLevel.VERY_HIGH,
+        requiresHardware = false, // Works on any touchscreen
+        requiresPermission = null
+    ),
     
+
     // ==================== POSSESSION FACTORS ====================
     // Something you have - physical tokens
     
