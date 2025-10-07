@@ -3,6 +3,7 @@ package com.zeropay.sdk.factors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.zeropay.sdk.Factor
+import com.zeropay.sdk.ui.RhythmTapCanvas
 
 /**
  * Factor Canvas Factory - PRODUCTION VERSION
