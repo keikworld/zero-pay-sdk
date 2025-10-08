@@ -1,7 +1,6 @@
 package com.zeropay.sdk.ui
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -12,53 +11,38 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zeropay.sdk.factors.RhythmTapFactor
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /**
- * Rhythm Tap Canvas - Behavioral Biometric Authentication UI
- * 
- * User Experience:
- * - Tap 4-6 times anywhere on the screen
- * - Visual feedback shows tap locations and count
- * - Ripple animation on each tap
- * - Auto-submit after max taps or manual submit
- * - Can reset and try again
+ * Rhythm Tap Canvas - PRODUCTION VERSION
  * 
  * Security Features:
- * - Captures millisecond-level timing between taps
- * - Generates SHA-256 digest locally
- * - No raw timing data transmitted
- * - Validates tap sequence before submission
- * 
- * Accessibility:
- * - No fine motor skills required
- * - Large tap area (full screen)
- * - Clear visual feedback
- * - Informative error messages
+ * - DoS protection (MIN/MAX taps: 4-6)
+ * - Input timeout (10 seconds)
+ * - Interval normalization
+ * - No tap data stored after submission
+ * - Immediate digest generation
  * 
  * GDPR Compliance:
- * - Only timing intervals captured (not coordinates)
- * - Irreversible hash generated
- * - No personal data stored
+ * - Only tap intervals used (behavioral biometric)
+ * - Data normalized for consistency
+ * - Irreversible SHA-256 transformation
  * 
- * @param onDone Callback with 32-byte SHA-256 digest
- * @param modifier Compose modifier for layout
+ * PSD3 Category: INHERENCE (behavioral biometric)
  * 
- * Version: 1.0.0
- * Last Updated: 2025-01-08
- * 
- * @author ZeroPay Security Team
+ * @param onDone Callback with SHA-256 digest
+ * @param modifier Compose modifier
  */
+private const val MIN_TAPS = 4
+private const val MAX_TAPS = 6
+private const val INPUT_TIMEOUT_MS = 10_000L // 10 seconds
+
 @Composable
 fun RhythmTapCanvas(
     onDone: (ByteArray) -> Unit,
@@ -66,122 +50,41 @@ fun RhythmTapCanvas(
 ) {
     // ==================== STATE MANAGEMENT ====================
     
-    // Tap data storage
-    var taps by remember { mutableStateOf<List<RhythmTapFactor.RhythmTap>>(emptyList()) }
-    
-    // Tap locations for visual feedback (not used in digest)
-    var tapLocations by remember { mutableStateOf<List<Offset>>(emptyList()) }
-    
-    // UI state
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var tapTimestamps by remember { mutableStateOf<List<Long>>(emptyList()) }
+    var isRecording by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
-    var showSuccess by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var recordingStartTime by remember { mutableStateOf(0L) }
     
-    // Animation state for ripples
-    var rippleAnimations by remember { mutableStateOf<List<Pair<Offset, Float>>>(emptyList()) }
+    // Visual feedback animation
+    var showTapFeedback by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (showTapFeedback) 1.2f else 1f,
+        animationSpec = tween(durationMillis = 100)
+    )
     
-    // Coroutine scope for animations
-    val scope = rememberCoroutineScope()
-    
-    // Min/max tap counts
-    val minTaps = RhythmTapFactor.getMinTaps()
-    val maxTaps = RhythmTapFactor.getMaxTaps()
-    val currentTapCount = taps.size
-    
-    // ==================== HELPER FUNCTIONS ====================
-    
-    /**
-     * Handle tap event
-     */
-    fun handleTap(offset: Offset) {
-        if (isProcessing || showSuccess) return
-        
-        // Clear error on new tap
-        errorMessage = null
-        
-        // Check if we've reached max taps
-        if (currentTapCount >= maxTaps) {
-            errorMessage = "Maximum $maxTaps taps reached. Submit or reset."
-            return
+    // Reset tap feedback
+    LaunchedEffect(showTapFeedback) {
+        if (showTapFeedback) {
+            kotlinx.coroutines.delay(100)
+            showTapFeedback = false
         }
-        
-        // Record tap with timestamp
-        val timestamp = System.currentTimeMillis()
-        taps = taps + RhythmTapFactor.RhythmTap(timestamp)
-        tapLocations = tapLocations + offset
-        
-        // Trigger ripple animation
-        rippleAnimations = rippleAnimations + (offset to 0f)
-        
-        // Animate ripple
-        scope.launch {
-            // Remove this ripple after animation completes
-            delay(500)
-            rippleAnimations = rippleAnimations.drop(1)
-        }
-        
-        // Auto-submit if we've reached max taps
-        if (taps.size == maxTaps) {
-            scope.launch {
-                delay(300) // Brief delay for final tap feedback
-                submitRhythm()
+    }
+    
+    // Recording timeout
+    LaunchedEffect(isRecording) {
+        if (isRecording) {
+            recordingStartTime = System.currentTimeMillis()
+            kotlinx.coroutines.delay(INPUT_TIMEOUT_MS)
+            
+            if (isRecording && tapTimestamps.size < MIN_TAPS) {
+                errorMessage = "Recording timeout - please try again"
+                isRecording = false
+                tapTimestamps = emptyList()
             }
         }
     }
-    
-    /**
-     * Submit rhythm for authentication
-     */
-    fun submitRhythm() {
-        if (isProcessing || showSuccess) return
-        
-        // Validate tap count
-        if (currentTapCount < minTaps) {
-            errorMessage = "Need at least $minTaps taps (current: $currentTapCount)"
-            return
-        }
-        
-        isProcessing = true
-        errorMessage = null
-        
-        scope.launch {
-            try {
-                // Validate taps
-                if (!RhythmTapFactor.isValidTaps(taps)) {
-                    errorMessage = "Invalid rhythm pattern. Try varying your tap timing more."
-                    isProcessing = false
-                    return@launch
-                }
-                
-                // Generate digest
-                val digest = RhythmTapFactor.digest(taps)
-                
-                // Show success feedback
-                showSuccess = true
-                delay(500)
-                
-                // Call callback
-                onDone(digest)
-                
-            } catch (e: Exception) {
-                errorMessage = e.message ?: "Failed to process rhythm. Try again."
-                isProcessing = false
-            }
-        }
-    }
-    
-    /**
-     * Reset rhythm input
-     */
-    fun resetRhythm() {
-        taps = emptyList()
-        tapLocations = emptyList()
-        rippleAnimations = emptyList()
-        errorMessage = null
-        isProcessing = false
-        showSuccess = false
-    }
-    
+
     // ==================== UI LAYOUT ====================
     
     Column(
@@ -189,267 +92,294 @@ fun RhythmTapCanvas(
             .fillMaxSize()
             .background(Color.Black)
             .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         // ==================== HEADER ====================
         
         Text(
-            text = "Tap Your Rhythm",
+            "Rhythm Tap Authentication",
             color = Color.White,
             fontSize = 28.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
         )
         
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "Tap $minTaps-$maxTaps times in your own rhythm",
+            "Tap out your unique rhythm ($MIN_TAPS-$MAX_TAPS taps)",
             color = Color.White.copy(alpha = 0.7f),
-            fontSize = 16.sp,
+            fontSize = 14.sp,
             textAlign = TextAlign.Center
         )
         
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         
-        // ==================== TAP COUNTER ====================
+        // ==================== STATUS ====================
         
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Taps: ",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 18.sp
-            )
-            
-            Text(
-                text = "$currentTapCount",
-                color = when {
-                    currentTapCount < minTaps -> Color.White
-                    currentTapCount in minTaps until maxTaps -> Color.Green
-                    else -> Color.Yellow
-                },
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold
-            )
-            
-            Text(
-                text = " / $maxTaps",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 18.sp
-            )
-        }
+        Text(
+            "Taps: ${tapTimestamps.size} / $MAX_TAPS",
+            color = when {
+                tapTimestamps.size < MIN_TAPS -> Color.White
+                tapTimestamps.size >= MIN_TAPS -> Color.Green
+                else -> Color.Yellow
+            },
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold
+        )
         
-        // Progress indicator
-        if (currentTapCount in minTaps until maxTaps) {
+        if (isRecording) {
+            Spacer(modifier = Modifier.height(8.dp))
+            val elapsed = (System.currentTimeMillis() - recordingStartTime) / 1000
             Text(
-                text = "Ready to submit!",
-                color = Color.Green,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
-        } else if (currentTapCount < minTaps) {
-            Text(
-                text = "${minTaps - currentTapCount} more tap${if (minTaps - currentTapCount > 1) "s" else ""} needed",
-                color = Color.White.copy(alpha = 0.5f),
+                "Time: ${elapsed}s / ${INPUT_TIMEOUT_MS / 1000}s",
+                color = if (elapsed > INPUT_TIMEOUT_MS / 2000) Color.Yellow else Color.White,
                 fontSize = 14.sp
             )
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // ==================== ERROR MESSAGE ====================
-        
         if (errorMessage != null) {
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = errorMessage!!,
                 color = Color.Red,
                 fontSize = 14.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(8.dp))
         }
         
-        // ==================== TAP AREA (CANVAS) ====================
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        // ==================== TAP AREA ====================
         
         Box(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .background(Color.DarkGray.copy(alpha = 0.3f))
-                .pointerInput(Unit) {
-                    detectTapGestures { offset ->
-                        handleTap(offset)
+                .size(250.dp)
+                .background(
+                    when {
+                        isRecording && tapTimestamps.size >= MIN_TAPS -> Color.Green.copy(alpha = 0.3f)
+                        isRecording -> Color.Blue.copy(alpha = 0.3f)
+                        else -> Color.DarkGray
+                    },
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+                .pointerInput(isRecording) {
+                    if (isRecording) {
+                        detectTapGestures {
+                            // DoS protection
+                            if (tapTimestamps.size >= MAX_TAPS) {
+                                errorMessage = "Maximum $MAX_TAPS taps reached"
+                                return@detectTapGestures
+                            }
+                            
+                            errorMessage = null
+                            
+                            val now = System.currentTimeMillis()
+                            tapTimestamps = tapTimestamps + now
+                            showTapFeedback = true
+                            
+                            // Auto-stop at max taps
+                            if (tapTimestamps.size >= MAX_TAPS) {
+                                isRecording = false
+                            }
+                        }
                     }
                 },
             contentAlignment = Alignment.Center
         ) {
-            // Canvas for drawing tap feedback
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                // Draw tap locations (persistent circles)
-                tapLocations.forEachIndexed { index, location ->
-                    // Outer circle (tap number)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Visual feedback
+                androidx.compose.foundation.Canvas(
+                    modifier = Modifier.size(100.dp * scale)
+                ) {
                     drawCircle(
-                        color = Color.Green.copy(alpha = 0.6f),
-                        radius = 40.dp.toPx(),
-                        center = location,
-                        style = Stroke(width = 3.dp.toPx())
-                    )
-                    
-                    // Inner filled circle
-                    drawCircle(
-                        color = Color.Green.copy(alpha = 0.3f),
-                        radius = 35.dp.toPx(),
-                        center = location
+                        color = Color.Cyan,
+                        radius = size.minDimension / 2
                     )
                 }
                 
-                // Draw ripple animations
-                rippleAnimations.forEach { (location, _) ->
-                    // Animated ripple (expands outward)
-                    drawCircle(
-                        color = Color.White.copy(alpha = 0.5f),
-                        radius = 50.dp.toPx(),
-                        center = location,
-                        style = Stroke(width = 2.dp.toPx())
-                    )
-                }
-            }
-            
-            // Instruction overlay (when no taps yet)
-            if (currentTapCount == 0 && !isProcessing) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "🎵",
-                        fontSize = 64.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Tap anywhere to start",
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 18.sp,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Like tapping to a beat!",
-                        color = Color.White.copy(alpha = 0.5f),
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-            
-            // Success overlay
-            if (showSuccess) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "✓",
-                        color = Color.Green,
-                        fontSize = 72.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Rhythm Captured!",
-                        color = Color.Green,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-            
-            // Processing overlay
-            if (isProcessing && !showSuccess) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "⏳",
-                        fontSize = 48.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Processing...",
-                        color = Color.White,
-                        fontSize = 16.sp
-                    )
-                }
-            }
-        }
-        
-        // ==================== INTERVAL PREVIEW (OPTIONAL DEBUG) ====================
-        
-        if (currentTapCount >= 2 && !isProcessing && !showSuccess) {
-            val intervals = taps.zipWithNext { a, b -> b.timestamp - a.timestamp }
-            Text(
-                text = "Intervals: ${intervals.joinToString(", ") { "${it}ms" }}",
-                color = Color.White.copy(alpha = 0.4f),
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // ==================== ACTION BUTTONS ====================
-        
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            // Reset Button
-            TextButton(
-                onClick = { resetRhythm() },
-                enabled = currentTapCount > 0 && !isProcessing && !showSuccess,
-                modifier = Modifier.weight(1f)
-            ) {
+                Spacer(modifier = Modifier.height(16.dp))
+                
                 Text(
-                    text = "Reset",
-                    color = if (currentTapCount > 0) Color.White else Color.Gray,
-                    fontSize = 16.sp
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            // Submit Button
-            Button(
-                onClick = { submitRhythm() },
-                enabled = currentTapCount >= minTaps && !isProcessing && !showSuccess,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (currentTapCount >= minTaps) Color.Green else Color.Gray,
-                    contentColor = Color.White
-                )
-            ) {
-                Text(
-                    text = if (isProcessing) "Processing..." else "Submit",
+                    text = when {
+                        !isRecording -> "Ready"
+                        tapTimestamps.size < MIN_TAPS -> "Keep tapping..."
+                        else -> "Tap to finish"
+                    },
+                    color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         
-        // ==================== TIPS ====================
+        // ==================== TAP INTERVALS DISPLAY ====================
+        
+        if (tapTimestamps.size > 1) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Intervals (ms):",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                val intervals = tapTimestamps.zipWithNext { a, b -> b - a }
+                Text(
+                    intervals.joinToString(" → "),
+                    color = Color.Cyan,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+        
+        // ==================== ACTION BUTTONS ====================
+        
+        if (!isRecording && tapTimestamps.isEmpty()) {
+            // Start button
+            Button(
+                onClick = {
+                    isRecording = true
+                    tapTimestamps = emptyList()
+                    errorMessage = null
+                    recordingStartTime = System.currentTimeMillis()
+                },
+                enabled = !isProcessing,
+                modifier = Modifier
+                    .fillMaxWidth(0.7f)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Green
+                )
+            ) {
+                Text(
+                    text = "Start Tapping",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        } else if (isRecording) {
+            // Stop button (only if min taps reached)
+            Button(
+                onClick = {
+                    isRecording = false
+                },
+                enabled = tapTimestamps.size >= MIN_TAPS,
+                modifier = Modifier
+                    .fillMaxWidth(0.7f)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (tapTimestamps.size >= MIN_TAPS) Color.Green else Color.Gray
+                )
+            ) {
+                Text(
+                    text = "Finish",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        } else {
+            // Submit and Reset buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Button(
+                    onClick = {
+                        tapTimestamps = emptyList()
+                        errorMessage = null
+                    },
+                    enabled = !isProcessing,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Gray
+                    )
+                ) {
+                    Text("Reset", fontSize = 16.sp)
+                }
+                
+                Button(
+                    onClick = {
+                        if (tapTimestamps.size < MIN_TAPS) {
+                            errorMessage = "Need at least $MIN_TAPS taps"
+                            return@Button
+                        }
+                        
+                        isProcessing = true
+                        errorMessage = null
+                        
+                        try {
+                            // Generate digest (Factor handles security + normalization)
+                            val digest = RhythmTapFactor.digest(tapTimestamps)
+                            onDone(digest)
+                            
+                            // Security: Clear tap data from memory
+                            tapTimestamps = emptyList()
+                            
+                        } catch (e: Exception) {
+                            errorMessage = e.message ?: "Failed to process rhythm"
+                            isProcessing = false
+                        }
+                    },
+                    enabled = !isProcessing,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Green
+                    )
+                ) {
+                    Text(
+                        text = if (isProcessing) "..." else "Submit",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        // ==================== SECURITY INFO ====================
         
         Text(
-            text = "💡 Tip: Vary your tap timing for better security",
+            "🔒 Zero-Knowledge Behavioral Biometric",
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            "• Your rhythm pattern is unique to you\n" +
+            "• Tap intervals are normalized and hashed\n" +
+            "• Raw timing data is never stored\n" +
+            "• Replay protection included",
             color = Color.White.copy(alpha = 0.5f),
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Text(
+            "💡 Tap naturally - don't try to be too precise",
+            color = Color.Yellow.copy(alpha = 0.7f),
+            fontSize = 11.sp
         )
     }
 }
