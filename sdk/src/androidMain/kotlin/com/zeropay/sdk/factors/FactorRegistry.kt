@@ -1,5 +1,3 @@
-// Path: sdk/src/androidMain/kotlin/com/zeropay/sdk/factors/FactorRegistry.kt
-
 package com.zeropay.sdk.factors
 
 import android.content.Context
