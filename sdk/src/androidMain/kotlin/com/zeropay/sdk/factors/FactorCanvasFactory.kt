@@ -1,63 +1,81 @@
 package com.zeropay.sdk.factors
 
+import android.content.Context
+import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorManager
+import android.nfc.NfcAdapter
+import android.os.Build
+import androidx.biometric.BiometricManager
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.zeropay.sdk.Factor
-import com.zeropay.sdk.ui.RhythmTapCanvas
+import com.zeropay.sdk.errors.FactorNotAvailableException
+import com.zeropay.sdk.ui.*
 
 /**
- * Factor Canvas Factory - PRODUCTION VERSION
- * 
- * Routes each factor type to its corresponding UI implementation.
+ * Factor Canvas Factory - PRODUCTION VERSION (REFACTORED)
  * 
  * Architecture:
- * - Composable factory pattern
- * - Type-safe routing
- * - Consistent error handling
- * - Zero-knowledge digest generation
+ * - All Canvas UI components moved to sdk/ui/ package
+ * - All Factor digest logic in sdk/factors/ (commonMain)
+ * - Clean separation of concerns (UI vs Logic)
+ * - Security features maintained at all levels
  * 
- * Security:
- * - All canvases generate SHA-256 digests locally
- * - No raw factor data transmitted
- * - GDPR-compliant (no PII stored)
+ * Security Features:
+ * - Availability checks before rendering
+ * - Permission validation
+ * - Hardware capability detection
+ * - DoS protection in all Canvas components
  * 
- * Error Handling:
- * - Validates factor availability before rendering
- * - Graceful fallback for unsupported factors
- * - User-friendly error messages
+ * GDPR Compliance:
+ * - User informed of data usage
+ * - Zero-knowledge processing
+ * - Privacy notices in all Canvas UIs
  * 
- * Version: 1.0.0
- * Last Updated: 2025-01-08
+ * @author ZeroPay Security Team
+ * @version 2.0.0 (Refactored)
  */
 object FactorCanvasFactory {
-
+    
+    // ==================== MAIN CANVAS FACTORY ====================
+    
     /**
-     * Create Composable canvas for specific factor
+     * Create Canvas UI for specified factor
      * 
-     * @param factor The authentication factor to render
-     * @param onDone Callback with 32-byte SHA-256 digest
-     * @param modifier Compose modifier for layout
+     * Security:
+     * - Validates factor availability before rendering
+     * - Checks hardware requirements
+     * - Verifies permissions
+     * - Returns Canvas that produces SHA-256 digest
      * 
-     * @throws IllegalArgumentException if factor is not supported
+     * @param factor Factor type to create canvas for
+     * @param context Android context (for hardware checks)
+     * @param onDone Callback receiving SHA-256 digest (32 bytes)
+     * @param modifier Compose modifier
      * 
-     * Zero-Knowledge: onDone receives only irreversible hash
-     * GDPR: No biometric data leaves device
+     * @return Composable Canvas UI for the factor
+     * @throws FactorNotAvailableException if factor not available on device
      */
     @Composable
-    fun CanvasForFactor(
+    fun createCanvas(
         factor: Factor,
+        context: Context,
         onDone: (ByteArray) -> Unit,
         modifier: Modifier = Modifier
     ) {
-        // Route to appropriate canvas implementation
+        // Validate factor availability
+        if (!FactorRegistry.isAvailable(context, factor)) {
+            throw FactorNotAvailableException(
+                factor = factor,
+                reason = "Factor not available on this device"
+            )
+        }
+        
+        // Route to appropriate Canvas UI
         when (factor) {
             // ==================== KNOWLEDGE FACTORS ====================
             
-            /**
-             * PIN Canvas - Numeric keypad input
-             * Validates: 4-12 digits, no sequential patterns
-             * Output: Argon2id hash (32 bytes)
-             */
             Factor.PIN -> {
                 PinCanvas(
                     onDone = onDone,
@@ -65,11 +83,6 @@ object FactorCanvasFactory {
                 )
             }
             
-            /**
-             * Color Canvas - Visual color sequence
-             * User selects 2-3 colors in order
-             * Output: SHA-256 hash (32 bytes)
-             */
             Factor.COLOUR -> {
                 ColourCanvas(
                     onSelected = onDone,
@@ -77,11 +90,6 @@ object FactorCanvasFactory {
                 )
             }
             
-            /**
-             * Emoji Canvas - Emoji sequence selection
-             * User selects 4 emojis from shuffled grid
-             * Output: SHA-256 hash (32 bytes)
-             */
             Factor.EMOJI -> {
                 EmojiCanvas(
                     onDone = onDone,
@@ -89,11 +97,6 @@ object FactorCanvasFactory {
                 )
             }
             
-            /**
-             * Words Canvas - Word list selection
-             * User selects 4 words from 3000-word list
-             * Output: SHA-256 hash (32 bytes)
-             */
             Factor.WORDS -> {
                 WordsCanvas(
                     onDone = onDone,
@@ -103,64 +106,49 @@ object FactorCanvasFactory {
             
             // ==================== BEHAVIORAL FACTORS ====================
             
-            /**
-             * Pattern Canvas - Micro-Timing Mode
-             * Includes precise timing data (microseconds)
-             * Analyzes velocity, acceleration, timing
-             * Output: SHA-256 hash (32 bytes)
-             */
             Factor.PATTERN_MICRO -> {
-                PatternCanvas { points ->
-                    val digest = PatternFactor.digestMicroTiming(points)
-                    onDone(digest)
-                }
+                PatternCanvas(
+                    onDone = { points ->
+                        // Generate micro-timing digest
+                        val digest = PatternFactor.digestMicroTiming(points)
+                        onDone(digest)
+                    },
+                    modifier = modifier
+                )
             }
             
-            /**
-             * Pattern Canvas - Normalized Timing Mode
-             * Speed-invariant analysis
-             * More forgiving for tremors/disability
-             * Output: SHA-256 hash (32 bytes)
-             */
             Factor.PATTERN_NORMAL -> {
-                PatternCanvas { points ->
-                    val digest = PatternFactor.digestNormalisedTiming(points)
-                    onDone(digest)
-                }
+                PatternCanvas(
+                    onDone = { points ->
+                        // Generate normalized timing digest
+                        val digest = PatternFactor.digestNormalisedTiming(points)
+                        onDone(digest)
+                    },
+                    modifier = modifier
+                )
             }
             
-            /**
-             * Mouse Canvas - Mouse movement tracking
-             * Captures trajectory, velocity, acceleration
-             * Requires mouse/trackpad
-             * Output: SHA-256 hash (32 bytes)
-             */
             Factor.MOUSE_DRAW -> {
-                MouseCanvas { points ->
-                    val digest = MouseFactor.digestMicroTiming(points)
-                    onDone(digest)
-                }
+                MouseCanvas(
+                    onDone = onDone,
+                    modifier = modifier
+                )
             }
             
-            /**
-             * Stylus Canvas - Pressure-sensitive drawing
-             * Captures position, pressure, timing
-             * Requires stylus (Samsung S-Pen, Apple Pencil, etc.)
-             * Output: SHA-256 hash (32 bytes)
-             */
             Factor.STYLUS_DRAW -> {
-                StylusCanvas { points ->
-                    val digest = StylusFactor.digestFull(points)
-                    onDone(digest)
-                }
+                StylusCanvas(
+                    onDone = onDone,
+                    modifier = modifier
+                )
             }
             
-            /**
-             * Voice Canvas - Audio recording
-             * Records 2-second voice sample
-             * GDPR: Audio deleted immediately after hashing
-             * Output: SHA-256 hash (32 bytes)
-             */
+            Factor.RHYTHM_TAP -> {
+                RhythmTapCanvas(
+                    onDone = onDone,
+                    modifier = modifier
+                )
+            }
+            
             Factor.VOICE -> {
                 VoiceCanvas(
                     onDone = onDone,
@@ -168,12 +156,6 @@ object FactorCanvasFactory {
                 )
             }
             
-            /**
-             * Image Tap Canvas - Spatial memory
-             * User taps 2 points on pre-approved image
-             * GDPR: Only abstract images, no personal photos
-             * Output: SHA-256 hash (32 bytes)
-             */
             Factor.IMAGE_TAP -> {
                 ImageTapCanvas(
                     onDone = onDone,
@@ -181,147 +163,183 @@ object FactorCanvasFactory {
                 )
             }
             
-            /**
-             * Balance Canvas - Accelerometer pattern
-             * User holds device steady
-             * Captures unique hand tremor/balance pattern
-             * Output: SHA-256 hash (32 bytes)
-             */
             Factor.BALANCE -> {
                 BalanceCanvas(
-                    onDone = onDone
-                )
-            }
-
-            /**
-             * Rhythm Tap Canvas - Behavioral biometric
-             * User taps 4-6 times in a rhythm
-             * Captures millisecond-level timing between taps
-             * Output: SHA-256 hash (32 bytes)
-             * 
-             * Security: Timing variations create high entropy
-             * UX: Fun, intuitive (like tapping to music)
-             * Accessibility: No fine motor skills needed
-             */
-            Factor.RHYTHM_TAP -> {
-                RhythmTapCanvas(
                     onDone = onDone,
                     modifier = modifier
                 )
             }
-
             
             // ==================== POSSESSION FACTORS ====================
             
-            /**
-             * NFC Canvas - Near Field Communication
-             * User taps NFC tag or card
-             * Reads UID and generates hash
-             * Output: SHA-256 hash (32 bytes)
-             */
             Factor.NFC -> {
                 NfcCanvas(
-                    onDone = onDone
+                    onDone = onDone,
+                    modifier = modifier
                 )
             }
             
             // ==================== BIOMETRIC FACTORS ====================
             
-            /**
-             * Face Canvas - Biometric face recognition
-             * Uses Android BiometricPrompt API
-             * GDPR: Biometric data never leaves device
-             * Zero-Knowledge: Only hash transmitted
-             * Output: SHA-256 hash (32 bytes)
-             */
-            Factor.FACE -> {
-                FaceCanvas(
-                    onDone = onDone
-                )
-            }
-            
-            /**
-             * Fingerprint Canvas - Biometric fingerprint
-             * Uses Android BiometricPrompt API
-             * GDPR: Biometric data never leaves device
-             * Zero-Knowledge: Only hash transmitted
-             * Output: SHA-256 hash (32 bytes)
-             * 
-             * Note: BiometricPrompt handles both face and fingerprint,
-             * this uses the same implementation as FACE
-             */
             Factor.FINGERPRINT -> {
-                // Android BiometricPrompt handles both face and fingerprint
-                // The prompt will show whatever biometric is available
-                FaceCanvas(
-                    onDone = onDone
+                // Note: Fingerprint uses platform BiometricPrompt, not a Canvas
+                throw FactorNotAvailableException(
+                    factor = factor,
+                    reason = "Fingerprint uses BiometricPrompt, not Canvas UI"
+                )
+            }
+            
+            Factor.FACE -> {
+                // Note: Face uses platform BiometricPrompt, not a Canvas
+                throw FactorNotAvailableException(
+                    factor = factor,
+                    reason = "Face uses BiometricPrompt, not Canvas UI"
                 )
             }
         }
     }
     
-    /**
-     * Check if factor has canvas implementation
-     * 
-     * @param factor Factor to check
-     * @return true if canvas is implemented
-     */
-    fun hasImplementation(factor: Factor): Boolean {
-        // All factors in the enum have implementations
-        return true
-    }
+    // ==================== VALIDATION ====================
     
     /**
-     * Get estimated time to complete factor (milliseconds)
-     * Used for UX planning and timeout settings
-     * 
-     * @param factor Factor to estimate
-     * @return Estimated completion time in milliseconds
+     * Validation result for factor requirements
      */
-    fun getEstimatedCompletionTime(factor: Factor): Long {
+    data class ValidationResult(
+        val isValid: Boolean,
+        val errorMessage: String? = null
+    )
+    
+    /**
+     * Validate canvas requirements are met
+     * 
+     * Checks:
+     * - Permissions granted
+     * - Hardware available
+     * - Factor enabled
+     * 
+     * @param factor Factor to validate
+     * @param context Android context
+     * @return ValidationResult with error message if invalid
+     */
+    fun validateRequirements(
+        factor: Factor,
+        context: Context
+    ): ValidationResult {
+        // Check if factor requires hardware
+        if (factor.requiresHardware) {
+            val available = FactorRegistry.checkAvailability(context, factor)
+            if (!available.isAvailable) {
+                return ValidationResult(
+                    isValid = false,
+                    errorMessage = available.reason ?: "Hardware not available"
+                )
+            }
+        }
+        
+        // Check permissions
+        factor.requiresPermission?.let { permission ->
+            if (context.checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
+                return ValidationResult(
+                    isValid = false,
+                    errorMessage = "Permission required: ${getPermissionDisplayName(permission)}"
+                )
+            }
+        }
+        
+        // Additional factor-specific checks
         return when (factor) {
-            // Fast factors (< 10 seconds)
-            Factor.PIN -> 8_000L
-            Factor.COLOUR -> 5_000L
-            Factor.EMOJI -> 6_000L
-            Factor.FINGERPRINT -> 3_000L
-            Factor.FACE -> 3_000L
-            Factor.NFC -> 2_000L
-            Factor.RHYTHM_TAP -> 5_000L
+            Factor.NFC -> {
+                val nfcAdapter = NfcAdapter.getDefaultAdapter(context)
+                when {
+                    nfcAdapter == null -> ValidationResult(
+                        isValid = false,
+                        errorMessage = "NFC not available on this device"
+                    )
+                    !nfcAdapter.isEnabled -> ValidationResult(
+                        isValid = false,
+                        errorMessage = "Please enable NFC in settings"
+                    )
+                    else -> ValidationResult(isValid = true)
+                }
+            }
             
-            // Medium factors (10-30 seconds)
-            Factor.PATTERN_MICRO -> 15_000L
-            Factor.PATTERN_NORMAL -> 12_000L
-            Factor.IMAGE_TAP -> 10_000L
-            Factor.BALANCE -> 8_000L
+            Factor.BALANCE -> {
+                val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+                val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+                if (accelerometer == null) {
+                    ValidationResult(
+                        isValid = false,
+                        errorMessage = "Accelerometer not available"
+                    )
+                } else {
+                    ValidationResult(isValid = true)
+                }
+            }
             
-            // Slower factors (30-60 seconds)
-            Factor.WORDS -> 45_000L
-            Factor.MOUSE_DRAW -> 20_000L
-            Factor.STYLUS_DRAW -> 25_000L
-            Factor.VOICE -> 10_000L
+            Factor.VOICE -> {
+                if (context.packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE)) {
+                    ValidationResult(isValid = true)
+                } else {
+                    ValidationResult(
+                        isValid = false,
+                        errorMessage = "Microphone not available"
+                    )
+                }
+            }
+            
+            Factor.FINGERPRINT, Factor.FACE -> {
+                val biometricManager = BiometricManager.from(context)
+                val canAuthenticate = biometricManager.canAuthenticate(
+                    BiometricManager.Authenticators.BIOMETRIC_STRONG
+                )
+                
+                when (canAuthenticate) {
+                    BiometricManager.BIOMETRIC_SUCCESS -> ValidationResult(isValid = true)
+                    BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> ValidationResult(
+                        isValid = false,
+                        errorMessage = "Biometric hardware not available"
+                    )
+                    BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> ValidationResult(
+                        isValid = false,
+                        errorMessage = "Biometric hardware unavailable"
+                    )
+                    BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> ValidationResult(
+                        isValid = false,
+                        errorMessage = "No biometric enrolled. Please enroll in settings."
+                    )
+                    else -> ValidationResult(
+                        isValid = false,
+                        errorMessage = "Biometric authentication not available"
+                    )
+                }
+            }
+            
+            else -> ValidationResult(isValid = true)
         }
     }
+    
+    // ==================== UI HELPER METHODS ====================
     
     /**
      * Get user-friendly instructions for factor
+     * Displayed in Canvas UI
      * 
      * @param factor Factor to get instructions for
-     * @return Instruction text for UI
+     * @return Instruction text
      */
     fun getInstructions(factor: Factor): String {
         return when (factor) {
             Factor.PIN -> "Enter your secret PIN code (4-12 digits)"
-            Factor.COLOUR -> "Tap colors in the sequence you chose during enrollment"
-            Factor.EMOJI -> "Select your 4 emojis in the correct order"
-            Factor.WORDS -> "Find and tap your 4 words from the grid"
-            Factor.RHYTHM_TAP -> "Tap 4-6 times in your own rhythm - like tapping to a beat"
+            Factor.COLOUR -> "Select colors in your chosen order"
+            Factor.EMOJI -> "Choose emojis you'll remember easily"
+            Factor.WORDS -> "Select 4 memorable words from the list"
             
-            Factor.PATTERN_MICRO -> "Draw your pattern carefully - timing matters"
-            Factor.PATTERN_NORMAL -> "Draw your pattern at any speed"
-            Factor.MOUSE_DRAW -> "Draw your signature with the mouse"
-            Factor.STYLUS_DRAW -> "Sign with your stylus - pressure matters"
-            Factor.VOICE -> "Speak your passphrase clearly into the microphone"
+            Factor.PATTERN_MICRO, Factor.PATTERN_NORMAL -> 
+                "Draw your unique pattern (at least 3 strokes)"
+            Factor.MOUSE_DRAW -> "Draw a signature with your mouse or trackpad"
+            Factor.STYLUS_DRAW -> "Draw with your stylus (pressure is part of security)"
+            Factor.RHYTHM_TAP -> "Tap out your unique rhythm (4-6 taps)"
+            Factor.VOICE -> "Speak clearly into the microphone"
             Factor.IMAGE_TAP -> "Tap the same 2 points on the image"
             Factor.BALANCE -> "Hold your device steady for 3 seconds"
             
@@ -334,7 +352,7 @@ object FactorCanvasFactory {
     
     /**
      * Get security tips for factor
-     * Displayed to user during enrollment
+     * Displayed during enrollment
      * 
      * @param factor Factor to get tips for
      * @return Security tip text
@@ -345,7 +363,7 @@ object FactorCanvasFactory {
             Factor.COLOUR -> "Pick colors that have personal meaning but aren't obvious"
             Factor.EMOJI -> "Choose emojis you'll remember easily"
             Factor.WORDS -> "Select words that form a memorable story or phrase"
-            Factor.RHYTHM_TAP -> "Vary your tap timing - don't tap evenly like a metronome" 
+            Factor.RHYTHM_TAP -> "Vary your tap timing - don't tap evenly like a metronome"
             
             Factor.PATTERN_MICRO, Factor.PATTERN_NORMAL -> 
                 "Draw naturally - your unique drawing style is part of security"
@@ -363,65 +381,154 @@ object FactorCanvasFactory {
     }
     
     /**
-     * Validate canvas requirements are met
-     * Checks permissions, hardware availability, etc.
+     * Get estimated completion time for factor
+     * Used for UX planning and timeouts
      * 
-     * @param factor Factor to validate
-     * @param context Android context
-     * @return Validation result with error message if failed
+     * @param factor Factor to estimate
+     * @return Estimated time in milliseconds
      */
-    fun validateRequirements(
-        factor: Factor,
-        context: android.content.Context
-    ): ValidationResult {
-        // Check if factor requires hardware
-        if (factor.requiresHardware) {
-            val available = FactorRegistry.checkAvailability(context, factor)
-            if (!available.isAvailable) {
-                return ValidationResult(
-                    isValid = false,
-                    errorMessage = available.reason ?: "Required hardware not available"
-                )
-            }
-        }
-        
-        // Check if factor requires permission
-        factor.requiresPermission?.let { permission ->
-            val granted = androidx.core.content.ContextCompat.checkSelfPermission(
-                context,
-                permission
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    fun getEstimatedCompletionTime(factor: Factor): Long {
+        return when (factor) {
+            Factor.PIN -> 5_000L              // 5 seconds
+            Factor.COLOUR -> 3_000L           // 3 seconds
+            Factor.EMOJI -> 5_000L            // 5 seconds
+            Factor.WORDS -> 15_000L           // 15 seconds (searching)
             
-            if (!granted) {
-                return ValidationResult(
-                    isValid = false,
-                    errorMessage = "Permission required: ${getPermissionDisplayName(permission)}",
-                    requiredPermission = permission
-                )
-            }
+            Factor.PATTERN_MICRO, Factor.PATTERN_NORMAL -> 5_000L  // 5 seconds
+            Factor.MOUSE_DRAW -> 8_000L       // 8 seconds
+            Factor.STYLUS_DRAW -> 8_000L      // 8 seconds
+            Factor.RHYTHM_TAP -> 5_000L       // 5 seconds
+            Factor.VOICE -> 5_000L            // 5 seconds (includes recording)
+            Factor.IMAGE_TAP -> 5_000L        // 5 seconds
+            Factor.BALANCE -> 5_000L          // 5 seconds (includes recording)
+            
+            Factor.NFC -> 3_000L              // 3 seconds
+            
+            Factor.FINGERPRINT -> 2_000L      // 2 seconds
+            Factor.FACE -> 2_000L             // 2 seconds
         }
-        
-        return ValidationResult(isValid = true)
     }
     
     /**
-     * Get user-friendly permission name
+     * Get factor category display name
+     * 
+     * @param category Factor category
+     * @return User-friendly category name
+     */
+    fun getCategoryDisplayName(category: Factor.Category): String {
+        return when (category) {
+            Factor.Category.KNOWLEDGE -> "Something You Know"
+            Factor.Category.POSSESSION -> "Something You Have"
+            Factor.Category.INHERENCE -> "Something You Are"
+        }
+    }
+    
+    /**
+     * Get factor difficulty level for users
+     * 
+     * @param factor Factor to check
+     * @return Difficulty (1=Very Easy, 5=Very Hard)
+     */
+    fun getDifficultyLevel(factor: Factor): Int {
+        return when (factor) {
+            Factor.PIN, Factor.COLOUR -> 1           // Very Easy
+            Factor.EMOJI, Factor.NFC -> 2            // Easy
+            Factor.PATTERN_NORMAL, Factor.FINGERPRINT, Factor.FACE -> 2  // Easy
+            Factor.RHYTHM_TAP, Factor.IMAGE_TAP, Factor.BALANCE -> 3     // Medium
+            Factor.WORDS -> 3                        // Medium (searching)
+            Factor.PATTERN_MICRO, Factor.MOUSE_DRAW -> 4  // Hard
+            Factor.STYLUS_DRAW, Factor.VOICE -> 4    // Hard
+        }
+    }
+    
+    /**
+     * Check if factor requires practice/training
+     * 
+     * @param factor Factor to check
+     * @return true if practice recommended
+     */
+    fun requiresPractice(factor: Factor): Boolean {
+        return when (factor) {
+            Factor.PATTERN_MICRO,
+            Factor.MOUSE_DRAW,
+            Factor.STYLUS_DRAW,
+            Factor.RHYTHM_TAP,
+            Factor.BALANCE -> true
+            else -> false
+        }
+    }
+    
+    /**
+     * Get recommended enrollment attempts
+     * Multiple attempts improve accuracy for behavioral factors
+     * 
+     * @param factor Factor to check
+     * @return Number of enrollment attempts recommended
+     */
+    fun getRecommendedEnrollmentAttempts(factor: Factor): Int {
+        return when (factor) {
+            Factor.PATTERN_MICRO,
+            Factor.RHYTHM_TAP,
+            Factor.BALANCE -> 3  // Behavioral biometrics need multiple samples
+            
+            Factor.VOICE -> 2    // Voice needs 2 samples for variation
+            
+            else -> 1            // Other factors need only 1 enrollment
+        }
+    }
+    
+    // ==================== PRIVATE HELPER METHODS ====================
+    
+    /**
+     * Get display name for Android permission
      */
     private fun getPermissionDisplayName(permission: String): String {
         return when (permission) {
-            "android.permission.RECORD_AUDIO" -> "Microphone access"
-            "android.permission.USE_BIOMETRIC" -> "Biometric authentication"
-            "android.permission.NFC" -> "NFC access"
-            else -> permission.substringAfterLast('.')
+            android.Manifest.permission.RECORD_AUDIO -> "Microphone"
+            android.Manifest.permission.CAMERA -> "Camera"
+            android.Manifest.permission.USE_BIOMETRIC -> "Biometric"
+            android.Manifest.permission.USE_FINGERPRINT -> "Fingerprint"
+            else -> permission.substringAfterLast(".")
         }
     }
-    
-    /**
-     * Validation result data class
-     */
-    data class ValidationResult(
-        val isValid: Boolean,
-        val errorMessage: String? = null,
-        val requiredPermission: String? = null
-    )
+}
+
+/**
+ * Extension function to check factor availability
+ * Convenience method for quick checks
+ */
+fun Factor.isAvailableOn(context: Context): Boolean {
+    return FactorRegistry.isAvailable(context, this)
+}
+
+/**
+ * Extension function to get factor instructions
+ * Convenience method for UI
+ */
+fun Factor.getInstructions(): String {
+    return FactorCanvasFactory.getInstructions(this)
+}
+
+/**
+ * Extension function to get factor security tip
+ * Convenience method for UI
+ */
+fun Factor.getSecurityTip(): String {
+    return FactorCanvasFactory.getSecurityTip(this)
+}
+
+/**
+ * Extension function to get estimated completion time
+ * Convenience method for UI
+ */
+fun Factor.getEstimatedTime(): Long {
+    return FactorCanvasFactory.getEstimatedCompletionTime(this)
+}
+
+/**
+ * Extension function to check if practice needed
+ * Convenience method for UI
+ */
+fun Factor.needsPractice(): Boolean {
+    return FactorCanvasFactory.requiresPractice(this)
 }
