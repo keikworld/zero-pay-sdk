@@ -48,17 +48,63 @@ object MerchantConfig {
     
     const val GATEWAY_TIMEOUT_SECONDS = 30
     const val ENABLE_MULTI_GATEWAY_FAILOVER = true
+
+    /**
+     * Payment Gateway Enum - ALL 13 GATEWAYS
+     * 
+     * @version 1.0.1
+     * @updated 2025-10-10
+     * @changes
+     * - Added: Adyen, Mercado Pago, Worldpay, Authorize.Net, Tilopay
+     * - Removed: PayPal (not implemented)
+     * 
+     * OAuth Gateways (5):
+     * - Google Pay, Apple Pay, Stripe, Adyen, Mercado Pago
+     * 
+     * Hashed Reference Gateways (8):
+     * - PayU, Yappy, Nequi, Tilopay, Alipay, WeChat Pay, Worldpay, Authorize.Net
+     */
     
     enum class PaymentGateway(val id: String, val displayName: String) {
+        // ==================== OAuth Gateways (5) ====================
+        GOOGLE_PAY("googlepay", "Google Pay"),
+        APPLE_PAY("applepay", "Apple Pay"),
         STRIPE("stripe", "Stripe"),
-        PAYPAL("paypal", "PayPal"),
+        ADYEN("adyen", "Adyen"),
+        MERCADOPAGO("mercadopago", "Mercado Pago"),
+        
+        // ==================== Hashed Reference Gateways (8) ====================
         PAYU("payu", "PayU"),
         YAPPY("yappy", "Yappy"),
         NEQUI("nequi", "Nequi"),
+        TILOPAY("tilopay", "Tilopay"),
         ALIPAY("alipay", "Alipay"),
         WECHAT("wechat", "WeChat Pay"),
-        GOOGLE_PAY("google_pay", "Google Pay"),
-        APPLE_PAY("apple_pay", "Apple Pay")
+        WORLDPAY("worldpay", "Worldpay"),
+        AUTHORIZENET("authorizenet", "Authorize.Net");
+        
+        companion object {
+            /**
+             * Get gateway by ID
+             */
+            fun fromId(id: String): PaymentGateway? {
+                return values().find { it.id == id }
+            }
+            
+            /**
+             * Get all gateway IDs
+             */
+            fun getAllIds(): List<String> {
+                return values().map { it.id }
+            }
+            
+            /**
+             * Validate gateway ID
+             */
+            fun isValidId(id: String): Boolean {
+                return values().any { it.id == id }
+            }
+        }
     }
     
     // ==================== UUID PRESENTATION ====================
