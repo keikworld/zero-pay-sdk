@@ -122,6 +122,7 @@ object EnrollmentConfig {
         PAYU("payu", "PayU", PaymentLinkType.HASHED_REF),
         YAPPY("yappy", "Yappy", PaymentLinkType.HASHED_REF),
         NEQUI("nequi", "Nequi", PaymentLinkType.HASHED_REF),
+        TILOPAY("tilopay", "Tilopay", PaymentLinkType.HASHED_REF),
         ALIPAY("alipay", "Alipay", PaymentLinkType.HASHED_REF),
         WECHAT("wechat", "WeChat Pay", PaymentLinkType.HASHED_REF)
     }
