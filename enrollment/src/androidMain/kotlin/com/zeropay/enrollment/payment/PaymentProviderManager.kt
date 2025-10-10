@@ -57,6 +57,7 @@ class PaymentProviderManager(
         registerProvider(PayUProvider())
         registerProvider(YappyProvider())
         registerProvider(NequiProvider())
+        registerProvider(TilopayProvider())
         registerProvider(AlipayProvider())
         registerProvider(WeChatPayProvider())
     }
