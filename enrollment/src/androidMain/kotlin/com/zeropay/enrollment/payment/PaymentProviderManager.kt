@@ -60,6 +60,10 @@ class PaymentProviderManager(
         registerProvider(TilopayProvider())
         registerProvider(AlipayProvider())
         registerProvider(WeChatPayProvider())
+        registerProvider(AdyenProvider(context))
+        registerProvider(MercadoPagoProvider(context))
+        registerProvider(WorldpayProvider())
+        registerProvider(AuthorizeNetProvider())
     }
     
     /**
