@@ -1,0 +1,155 @@
+// Path: sdk/src/commonMain/kotlin/com/zeropay/sdk/gateway/impl/TilopayGateway.kt
+
+package com.zeropay.sdk.gateway.impl
+
+import com.zeropay.sdk.gateway.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.util.Base64
+
+/**
+ * Tilopay Gateway - PRODUCTION VERSION
+ * 
+ * Simplified authentication-only integration for Tilopay.
+ * Supports Panama, Central America, Caribbean.
+ * 
+ * Features:
+ * - Cards (Visa, Mastercard, Amex)
+ * - Yappy alliance
+ * - SINPE Móvil
+ * - Tokenization
+ * 
+ * Architecture:
+ * - Authentication: Basic Auth (API Key + Username + Password)
+ * - API: RESTful JSON
+ * - Retry: Exponential backoff
+ * - Security: TLS 1.2+, PCI DSS
+ * 
+ * Documentation:
+ * - https://tilopay.com/documentacion
+ * - https://woocommerce.com/document/tilopay-gateway/
+ * 
+ * @property tokenStorage Gateway token storage
+ * @property baseUrl Tilopay API base URL
+ * 
+ * @version 1.0.0
+ * @date 2025-10-10
+ */
+class TilopayGateway(
+    private val tokenStorage: GatewayTokenStorage,
+    private val baseUrl: String = "https://api.tilopay.com"
+) : GatewayProvider {
+    
+    override val gatewayId = "tilopay"
+    override val displayName = "Tilopay"
+    
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+    
+    companion object {
+        private const val TAG = "TilopayGateway"
+        private const val API_VERSION = "v2"
+    }
+    
+    override suspend fun isAvailable(userUuid: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            tokenStorage.getToken(userUuid, gatewayId) != null
+        }
+    }
+    
+    override suspend fun authenticate(request: AuthRequest): Boolean {
+        return withContext(Dispatchers.IO) {
+            NetworkRetryHandler.withRetry { attempt ->
+                executeAuthentication(request, attempt)
+            }
+        }
+    }
+    
+    /**
+     * Execute authentication with Tilopay
+     * 
+     * Flow:
+     * 1. Retrieve user's Tilopay credentials (API Key:Username:Password)
+     * 2. Create order/charge
+     * 3. Include ZeroPay metadata
+     * 4. Return success status
+     * 
+     * @param request Authentication request
+     * @param attempt Retry attempt number
+     * @return true if API call succeeded
+     */
+    private suspend fun executeAuthentication(
+        request: AuthRequest,
+        attempt: Int
+    ): Boolean {
+        // Get user's Tilopay credentials
+        val tilopayToken = tokenStorage.getToken(request.userUuid, gatewayId)
+            ?: throw GatewayException(
+                "No Tilopay token found for user",
+                gatewayId = gatewayId
+            )
+        
+        // Parse token (format: "apiKey:username:password")
+        val parts = tilopayToken.split(":")
+        require(parts.size == 3) { "Invalid Tilopay token format" }
+        val (apiKey, username, password) = parts
+        
+        // Convert proof hash to hex
+        val proofHashHex = request.proofHash.joinToString("") { "%02x".format(it) }
+        
+        // Create charge with ZeroPay authentication
+        val chargeJson = JSONObject().apply {
+            put("key", apiKey)
+            put("amount", String.format("%.2f", request.amount / 100.0))
+            put("currency", request.currency)
+            put("description", "ZeroPay Authenticated Transaction")
+            put("order_id", request.sessionId)
+            
+            // ZeroPay metadata
+            val metadata = JSONObject().apply {
+                put("zeropay_user_uuid", request.userUuid)
+                put("zeropay_merchant_id", request.merchantId)
+                put("zeropay_proof_hash", proofHashHex)
+                put("zeropay_authenticated", "true")
+                put("zeropay_timestamp", System.currentTimeMillis())
+            }
+            put("metadata", metadata)
+            
+            // Capture mode: auto capture
+            put("capture", true)
+        }
+        
+        val requestBody = chargeJson.toString()
+            .toRequestBody("application/json".toMediaType())
+        
+        // Generate Basic Auth header
+        val credentials = "$username:$password"
+        val basicAuth = "Basic " + Base64.getEncoder().encodeToString(credentials.toByteArray())
+        
+        val httpRequest = Request.Builder()
+            .url("$baseUrl/$API_VERSION/charges")
+            .post(requestBody)
+            .header("Authorization", basicAuth)
+            .header("Content-Type", "application/json")
+            .header("X-API-Key", apiKey)
+            .header("Idempotency-Key", "${request.sessionId}-attempt-$attempt")
+            .build()
+        
+        val response = client.newCall(httpRequest).execute()
+        
+        // Log response for debugging (non-production)
+        if (!response.isSuccessful) {
+            val errorBody = response.body?.string() ?: "No error body"
+            android.util.Log.e(TAG, "Tilopay error: ${response.code} - $errorBody")
+        }
+        
+        // Only care if API call succeeded
+        return response.isSuccessful
+    }
+}
