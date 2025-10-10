@@ -33,7 +33,7 @@ object EnrollmentConfig {
      * Maximum factors allowed (DoS protection)
      * Higher limit to accommodate 6-factor minimum
      */
-    const val MAX_FACTORS = 10
+    const val MAX_FACTORS = 15
     
     /**
      * Total available factors for selection
@@ -109,28 +109,63 @@ object EnrollmentConfig {
     const val MAX_PAYMENT_PROVIDERS = 5
     
     /**
-     * Available payment providers
+     * Payment link types
+     */
+    enum class PaymentLinkType {
+        OAUTH,       // OAuth 2.0 flow (e.g., Stripe, Google Pay, Adyen, MercadoPago)
+        HASHED_REF   // Hashed reference (e.g., PayU, Alipay, Worldpay, AuthorizeNet)
+    }
+    
+    /**
+     * Available payment providers - ALL 13 GATEWAYS
+     * 
+     * @version 1.0.1
+     * @updated 2025-10-10 - Added Adyen, MercadoPago, Worldpay, AuthorizeNet
      */
     enum class PaymentProvider(
         val id: String,
         val displayName: String,
         val linkType: PaymentLinkType
     ) {
+        // ==================== OAuth Gateways (5) ====================
         GOOGLE_PAY("googlepay", "Google Pay", PaymentLinkType.OAUTH),
         APPLE_PAY("applepay", "Apple Pay", PaymentLinkType.OAUTH),
         STRIPE("stripe", "Stripe", PaymentLinkType.OAUTH),
+        ADYEN("adyen", "Adyen", PaymentLinkType.OAUTH),
+        MERCADOPAGO("mercadopago", "Mercado Pago", PaymentLinkType.OAUTH),
+        
+        // ==================== Hashed Reference Gateways (8) ====================
         PAYU("payu", "PayU", PaymentLinkType.HASHED_REF),
         YAPPY("yappy", "Yappy", PaymentLinkType.HASHED_REF),
         NEQUI("nequi", "Nequi", PaymentLinkType.HASHED_REF),
         TILOPAY("tilopay", "Tilopay", PaymentLinkType.HASHED_REF),
         ALIPAY("alipay", "Alipay", PaymentLinkType.HASHED_REF),
-        WECHAT("wechat", "WeChat Pay", PaymentLinkType.HASHED_REF)
-    }
-    
-    enum class PaymentLinkType {
-        OAUTH,        // OAuth 2.0 flow
-        HASHED_REF,   // Email/phone + UUID hash
-        NFC           // NFC card tap (future)
+        WECHAT("wechat", "WeChat Pay", PaymentLinkType.HASHED_REF),
+        WORLDPAY("worldpay", "Worldpay", PaymentLinkType.HASHED_REF),
+        AUTHORIZENET("authorizenet", "Authorize.Net", PaymentLinkType.HASHED_REF);
+        
+        companion object {
+            /**
+             * Get provider by ID
+             */
+            fun fromId(id: String): PaymentProvider? {
+                return values().find { it.id == id }
+            }
+            
+            /**
+             * Get all OAuth providers
+             */
+            fun getOAuthProviders(): List<PaymentProvider> {
+                return values().filter { it.linkType == PaymentLinkType.OAUTH }
+            }
+            
+            /**
+             * Get all hashed reference providers
+             */
+            fun getHashedRefProviders(): List<PaymentProvider> {
+                return values().filter { it.linkType == PaymentLinkType.HASHED_REF }
+            }
+        }
     }
     
     // ==================== CACHE CONFIGURATION ====================
@@ -144,6 +179,21 @@ object EnrollmentConfig {
      * Enrollment session timeout (milliseconds)
      */
     const val SESSION_TIMEOUT_MS = 1800000L // 30 minutes
+
+    /**
+     * Factor capture timeout per factor (2 minutes)
+     */
+    const val FACTOR_CAPTURE_TIMEOUT_MS = 2 * 60 * 1000L
+    
+    /**
+     * Enable practice mode for new factors
+     */
+    const val ENABLE_PRACTICE_MODE = true
+    
+    /**
+     * Number of practice attempts before actual capture
+     */
+    const val PRACTICE_ATTEMPTS = 2
     
     // ==================== SECURITY CONFIGURATION ====================
     
@@ -196,6 +246,10 @@ object EnrollmentConfig {
         ),
         TERMS_OF_SERVICE(
             "I agree to ZeroPay Terms of Service and Privacy Policy"
+        )
+        GDPR_COMPLIANCE(
+            "GDPR Rights",
+            "I understand my GDPR rights including right to erasure and data portability."
         )
     }
     
@@ -287,11 +341,26 @@ object EnrollmentConfig {
         return ValidationResult.Valid
     }
     
-    /**
-     * Validation result
-     */
-    sealed class ValidationResult {
-        object Valid : ValidationResult()
-        data class Invalid(val message: String) : ValidationResult()
+        /**
+         * Validation result
+         */
+        sealed class ValidationResult {
+            object Valid : ValidationResult()
+            data class Invalid(val message: String) : ValidationResult()
+        }
+        // ==================== ERROR MESSAGES ====================
+        
+        const val ERROR_MIN_FACTORS = "Please select at least $MIN_FACTORS factors"
+        const val ERROR_MIN_CATEGORIES = "Please select factors from at least $MIN_CATEGORIES_REQUIRED categories"
+        const val ERROR_SESSION_EXPIRED = "Session expired. Please start over."
+        const val ERROR_FACTOR_CAPTURE_FAILED = "Factor capture failed. Please try again."
+        const val ERROR_PAYMENT_LINK_FAILED = "Payment linking failed. Please try again."
+        const val ERROR_WEAK_PATTERN = "Pattern is too weak. Please choose a stronger pattern."
+        
+        // ==================== SUCCESS MESSAGES ====================
+        
+        const val SUCCESS_ENROLLMENT_COMPLETE = "Enrollment complete! You can now use ZeroPay."
+        const val SUCCESS_FACTOR_CAPTURED = "Factor captured successfully"
+        const val SUCCESS_PAYMENT_LINKED = "Payment provider linked successfully"
     }
 }
