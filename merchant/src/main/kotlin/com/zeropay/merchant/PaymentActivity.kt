@@ -27,26 +27,34 @@ class PaymentActivity : ComponentActivity() {
     private lateinit var handoffManager: PaymentHandoffManager
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    super.onCreate(savedInstanceState)
+    
+    // Initialize handoff manager with ALL gateways
+    val tokenStorage = GatewayTokenStorage()
+    handoffManager = PaymentHandoffManager(tokenStorage).apply {
+        // OAuth Gateways
+        registerGateway(GooglePayGateway(tokenStorage))
+        registerGateway(ApplePayGateway(tokenStorage))
+        registerGateway(StripeGateway(tokenStorage))
         
-        // Initialize handoff manager
-        val tokenStorage = GatewayTokenStorage()
-        handoffManager = PaymentHandoffManager(tokenStorage).apply {
-            registerGateway(StripeGateway(tokenStorage))
-            registerGateway(PayUGateway(tokenStorage))
-            registerGateway(AlipayGateway(tokenStorage))
-        }
-        
-        setContent {
-            PaymentScreen(
-                handoffManager = handoffManager,
-                userUuid = "user_abc123",
-                proof = ByteArray(80 * 1024), // zkSNARK proof (80 KB)
-                amount = 5000L, // $50.00
-                currency = "USD",
-                merchantId = "merchant_xyz"
-            )
-        }
+        // Hashed Reference Gateways
+        registerGateway(PayUGateway(tokenStorage))
+        registerGateway(YappyGateway(tokenStorage))
+        registerGateway(NequiGateway(tokenStorage))
+        registerGateway(TilopayGateway(tokenStorage)) 
+        registerGateway(AlipayGateway(tokenStorage))
+        registerGateway(WeChatPayGateway(tokenStorage))
+    }
+    
+    setContent {
+        PaymentScreen(
+            handoffManager = handoffManager,
+            userUuid = "user_abc123",
+            proof = ByteArray(80 * 1024), // zkSNARK proof (80 KB)
+            amount = 5000L, // $50.00
+            currency = "USD",
+            merchantId = "merchant_xyz"
+        )
     }
 }
 
