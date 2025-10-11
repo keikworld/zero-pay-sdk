@@ -1,0 +1,102 @@
+# ZeroPay Redis ACL Configuration
+# Redis 6.0+ Access Control Lists
+#
+# Syntax: user <username> <flags> <passwords> <keys> <commands>
+#
+# Flags:
+#   on/off    - enable/disable user
+#   >password - add password
+#   ~pattern  - allow access to keys matching pattern
+#   +command  - allow specific command
+#   -command  - deny specific command
+#   +@category - allow command category
+#   -@all     - deny all commands (start with nothing)
+
+# ============================================================================
+# BACKEND USER (Read/Write enrollment keys only)
+# ============================================================================
+# Permissions:
+#   - Can only access keys starting with "enrollment:"
+#   - Can GET, SET, SETEX, DEL, EXISTS, TTL
+#   - Cannot access other keys or execute dangerous commands
+#   - Principle of least privilege
+
+user zeropay-backend on >9Epxm7Sr5sCF0+LDDdcUasXilrY6uFn53agMg3XzQJ3YCsVvKldwXpCnCvACb1BJ ~enrollment:* +get +set +setex +del +exists +ttl +ping -@all
+
+# ============================================================================
+# MONITORING USER (Read-only access for health checks)
+# ============================================================================
+# Permissions:
+#   - Read-only access to all keys
+#   - Can execute INFO, PING, CLIENT commands
+#   - Perfect for monitoring tools (Prometheus, Grafana, etc.)
+
+user zeropay-monitor on >6Wp3EeSD3mwAZ1K4M3q6DgOx55aqa88B3zi4ybvDPjjgSKnvT7bhzwTMQVPnu3hs ~* +info +ping +client|list +client|getname -@all
+
+# ============================================================================
+# ADMIN USER (Emergency access only)
+# ============================================================================
+# Permissions:
+#   - Full access to all commands and keys
+#   - Use ONLY for maintenance and emergencies
+#   - Disable in production unless needed
+# 
+# Uncomment to enable (replace password with secure value):
+# user zeropay-admin on >REPLACE_WITH_SECURE_ADMIN_PASSWORD ~* +@all
+
+# ============================================================================
+# DEFAULT USER (DISABLED FOR SECURITY)
+# ============================================================================
+# The default user is disabled to force authentication
+# All connections must use a named user with ACL permissions
+
+user default off nopass ~* -@all
+
+# ============================================================================
+# ACL RULES EXPLANATION
+# ============================================================================
+#
+# Example: user zeropay-backend on >password ~enrollment:* +get -@all
+#
+# Breaking it down:
+#   user zeropay-backend  - Username
+#   on                    - User is enabled
+#   >password             - Password for this user
+#   ~enrollment:*         - Can only access keys matching "enrollment:*"
+#   +get                  - Allowed command: GET
+#   -@all                 - Start by denying all commands
+#
+# Why this matters:
+#   - If backend is compromised, attacker can only access enrollment keys
+#   - Cannot FLUSHDB, cannot access other data
+#   - Cannot execute dangerous commands
+#   - Defense in depth!
+#
+# ============================================================================
+# TESTING ACL RULES
+# ============================================================================
+#
+# Test backend user:
+#   redis-cli --tls --cert ./redis/tls/redis.crt --key ./redis/tls/redis.key \
+#     --cacert ./redis/tls/ca.crt -p 6380 --user zeropay-backend --pass <password>
+#
+# Try allowed command:
+#   SET enrollment:test "value"  → Should work ✅
+#
+# Try forbidden command:
+#   SET other:key "value"        → Should fail ❌ (wrong key pattern)
+#   FLUSHDB                      → Should fail ❌ (command not allowed)
+#
+# ============================================================================
+
+# Load this ACL file in redis.conf with:
+#   aclfile ./redis/users.acl
+#
+# After modifying, reload with:
+#   redis-cli ACL LOAD
+#
+# View active rules:
+#   redis-cli ACL LIST
+#
+# Check user permissions:
+#   redis-cli ACL GETUSER zeropay-backend
