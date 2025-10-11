@@ -32,3 +32,41 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Environment variables (NEVER COMMIT!)
+.env
+.env.*
+!.env.example
+
+# TLS private keys (NEVER COMMIT!)
+*.key
+ca.key
+redis.key
+
+# Redis data
+*.rdb
+*.aof
+dump.rdb
+appendonly.aof
+
+# Logs
+*.log
+logs/
+redis.log
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
