@@ -1,0 +1,175 @@
+# ZeroPay Redis Configuration - PRODUCTION SECURE
+# Redis 6.0+ required for ACL support
+
+# ============================================================================
+# NETWORK SECURITY
+# ============================================================================
+
+# Bind to localhost only (no external access)
+bind 127.0.0.1 ::1
+
+# Enable protected mode (requires authentication)
+protected-mode yes
+
+# Disable non-TLS port (use TLS only)
+port 0
+
+# Enable TLS port
+tls-port 6380
+
+# TLS Certificate Configuration
+tls-cert-file ./redis/tls/redis.crt
+tls-key-file ./redis/tls/redis.key
+tls-ca-cert-file ./redis/tls/ca.crt
+
+# Require client certificates
+tls-auth-clients yes
+
+# Allowed TLS protocols (TLS 1.2 and 1.3 only)
+tls-protocols "TLSv1.2 TLSv1.3"
+
+# Strong cipher suites only
+tls-ciphers HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA
+
+# Prefer server cipher order
+tls-prefer-server-ciphers yes
+
+# ============================================================================
+# AUTHENTICATION
+# ============================================================================
+
+# Require password for all connections
+# Replace with your generated password from .env
+requirepass CdTSZKND5ErLG9WaMcCkPGyoZS/9NMR9fNM1e1x9nElEUc+zY5cTW4b8mdIU4b8+
+
+# ACL configuration file
+aclfile ./redis/users.acl
+
+# ============================================================================
+# MEMORY MANAGEMENT
+# ============================================================================
+
+# Maximum memory limit (2GB)
+maxmemory 2gb
+
+# Eviction policy (remove least recently used keys)
+maxmemory-policy allkeys-lru
+
+# Sample size for LRU algorithm
+maxmemory-samples 5
+
+# Maximum number of client connections
+maxclients 1000
+
+# ============================================================================
+# PERSISTENCE (DISABLED FOR CACHE)
+# ============================================================================
+
+# Disable RDB snapshots (ephemeral cache)
+save ""
+
+# Disable AOF persistence (ephemeral cache)
+appendonly no
+
+# If you need persistence, enable and encrypt at filesystem level:
+# save 900 1
+# save 300 10
+# save 60 10000
+# appendonly yes
+# appendfsync everysec
+
+# ============================================================================
+# SECURITY HARDENING
+# ============================================================================
+
+# Rename dangerous commands (disable them)
+rename-command FLUSHDB ""
+rename-command FLUSHALL ""
+rename-command KEYS ""
+rename-command DEBUG ""
+rename-command SHUTDOWN "SHUTDOWN_ADMIN_ONLY_ae8f9c"
+rename-command CONFIG "CONFIG_ADMIN_ONLY_7b3d8e"
+
+# Client timeout (close idle connections after 5 minutes)
+timeout 300
+
+# TCP keepalive (detect dead clients)
+tcp-keepalive 300
+
+# Close connection if client is slow
+client-output-buffer-limit normal 0 0 0
+client-output-buffer-limit replica 256mb 64mb 60
+client-output-buffer-limit pubsub 32mb 8mb 60
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+
+# Log level (debug, verbose, notice, warning)
+loglevel notice
+
+# Log file location
+logfile ./redis/redis.log
+
+# Log queries slower than X microseconds (10ms = 10000)
+slowlog-log-slower-than 10000
+slowlog-max-len 128
+
+# ============================================================================
+# ADVANCED SECURITY
+# ============================================================================
+
+# Disable Lua scripting (potential security risk)
+# Uncomment if you don't need Lua scripts
+# rename-command EVAL ""
+# rename-command EVALSHA ""
+
+# Enable active defragmentation (reduce memory fragmentation)
+activedefrag yes
+
+# Defragmentation thresholds
+active-defrag-ignore-bytes 100mb
+active-defrag-threshold-lower 10
+active-defrag-threshold-upper 100
+
+# ============================================================================
+# PERFORMANCE
+# ============================================================================
+
+# Number of I/O threads
+io-threads 4
+io-threads-do-reads yes
+
+# TCP backlog
+tcp-backlog 511
+
+# ============================================================================
+# REPLICATION (if using master-replica setup)
+# ============================================================================
+
+# Uncomment for replica configuration
+# replicaof <masterip> <masterport>
+# masterauth <master-password>
+
+# ============================================================================
+# MONITORING
+# ============================================================================
+
+# Enable latency monitoring
+latency-monitor-threshold 100
+
+# Track key frequency (for stats)
+# maxmemory-policy allkeys-lfu would use this
+# lfu-log-factor 10
+# lfu-decay-time 1
+
+# ============================================================================
+# END OF CONFIGURATION
+# ============================================================================
+
+# Redis will listen on: localhost:6380 (TLS only)
+# Authentication required: requirepass + ACL
+# Data encrypted in transit: TLS 1.2/1.3
+# Data encrypted at rest: Application-level AES-256-GCM
+# Network isolated: bind 127.0.0.1
+# Dangerous commands disabled
