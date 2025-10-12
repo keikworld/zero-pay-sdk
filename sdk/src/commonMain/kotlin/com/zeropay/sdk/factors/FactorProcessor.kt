@@ -1,10 +1,12 @@
 // Path: sdk/src/commonMain/kotlin/com/zeropay/sdk/factors/FactorProcessor.kt
+// UPDATED VERSION - Replace placeholder processor objects with real implementations
 
 package com.zeropay.sdk.factors
 
 import com.zeropay.sdk.models.*
 import com.zeropay.sdk.security.CryptoUtils
 import com.zeropay.sdk.security.DoubleLayerEncryption
+import com.zeropay.sdk.factors.processors.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -32,7 +34,7 @@ import kotlinx.coroutines.withContext
  * - Side-channel resistant
  * 
  * @param doubleLayerEncryption Encryption engine
- * @version 1.0.0
+ * @version 2.0.0 - Updated with all processor implementations
  * @date 2025-10-12
  * @author ZeroPay Security Team
  */
@@ -52,13 +54,6 @@ class FactorProcessor(
      * @param factor Factor to process
      * @return FactorDigest with hash
      * @throws FactorException if processing fails
-     * 
-     * Example:
-     * ```kotlin
-     * val processor = FactorProcessor(encryption)
-     * val factor = Factor(FactorType.PATTERN, "12345678")
-     * val digest = processor.processFactor(factor)
-     * ```
      */
     suspend fun processFactor(factor: Factor): FactorDigest = withContext(Dispatchers.Default) {
         try {
@@ -71,9 +66,9 @@ class FactorProcessor(
             }
             
             // Warn if weak
-            if (validation.isWeak()) {
-                // Log warning but allow (user's choice)
-                println("⚠️ Warning: Weak ${factor.type.displayName} detected")
+            if (validation.warnings.isNotEmpty()) {
+                // Log warnings but allow (user's choice)
+                println("⚠️ Warning: ${validation.warnings.joinToString(", ")}")
             }
             
             // Step 2: Normalize
@@ -111,7 +106,9 @@ class FactorProcessor(
         val factorSet = try {
             FactorSet(factors)
         } catch (e: Exception) {
-            throw FactorException.InsufficientFactorsException(e.message ?: "Invalid factor set")
+            throw FactorException.InsufficientFactorsException(
+                e.message ?: "Invalid factor set"
+            )
         }
         
         // Process each factor
@@ -137,14 +134,20 @@ class FactorProcessor(
         // Get strength
         val strength = factor.getStrength()
         
-        // Type-specific validation
+        // Type-specific validation - NOW USES REAL PROCESSORS
         val typeValidation = when (factor.type) {
+            FactorType.PIN -> PinProcessor.validate(factor.value)
             FactorType.PATTERN -> PatternProcessor.validate(factor.value)
             FactorType.EMOJI -> EmojiProcessor.validate(factor.value)
             FactorType.COLOR -> ColorProcessor.validate(factor.value)
+            FactorType.WORDS -> WordsProcessor.validate(factor.value)
+            FactorType.MOUSE -> MouseProcessor.validate(factor.value)
+            FactorType.STYLUS -> StylusProcessor.validate(factor.value)
             FactorType.VOICE -> VoiceProcessor.validate(factor.value)
-            FactorType.PIN -> validatePin(factor.value)
-            else -> ValidationResult(true)
+            FactorType.IMAGE_TAP -> ImageTapProcessor.validate(factor.value)
+            FactorType.FINGERPRINT -> ValidationResult(true) // Hardware-backed
+            FactorType.FACE -> ValidationResult(true) // Hardware-backed
+            else -> ValidationResult(false, "Unknown factor type: ${factor.type}")
         }
         
         if (!typeValidation.isValid) {
@@ -182,42 +185,19 @@ class FactorProcessor(
      */
     private fun normalizeFactor(factor: Factor): String {
         return when (factor.type) {
+            FactorType.PIN -> PinProcessor.normalize(factor.value)
             FactorType.PATTERN -> PatternProcessor.normalize(factor.value)
             FactorType.EMOJI -> EmojiProcessor.normalize(factor.value)
             FactorType.COLOR -> ColorProcessor.normalize(factor.value)
+            FactorType.WORDS -> WordsProcessor.normalize(factor.value)
+            FactorType.MOUSE -> MouseProcessor.normalize(factor.value)
+            FactorType.STYLUS -> StylusProcessor.normalize(factor.value)
             FactorType.VOICE -> VoiceProcessor.normalize(factor.value)
-            FactorType.PIN -> factor.value.trim()
+            FactorType.IMAGE_TAP -> ImageTapProcessor.normalize(factor.value)
+            FactorType.FINGERPRINT -> factor.value // Hardware-backed, no normalization
+            FactorType.FACE -> factor.value // Hardware-backed, no normalization
             else -> factor.value.trim()
         }
-    }
-    
-    /**
-     * Validate PIN
-     */
-    private fun validatePin(pin: String): ValidationResult {
-        if (pin.length != 6) {
-            return ValidationResult(false, "PIN must be exactly 6 digits")
-        }
-        
-        if (!pin.all { it.isDigit() }) {
-            return ValidationResult(false, "PIN must contain only digits")
-        }
-        
-        val warnings = mutableListOf<String>()
-        
-        // Check for sequential
-        val isSequential = pin.zipWithNext().all { (a, b) -> b.code - a.code == 1 }
-        if (isSequential) {
-            warnings.add("PIN contains sequential digits")
-        }
-        
-        // Check for repeating
-        val isRepeating = pin.all { it == pin[0] }
-        if (isRepeating) {
-            warnings.add("PIN contains repeating digits")
-        }
-        
-        return ValidationResult(true, warnings = warnings)
     }
     
     /**
@@ -251,6 +231,8 @@ class FactorProcessor(
 
 /**
  * ValidationResult - Type-specific validation result
+ * 
+ * Used internally by processors.
  */
 internal data class ValidationResult(
     val isValid: Boolean,
@@ -259,45 +241,13 @@ internal data class ValidationResult(
 )
 
 /**
- * Type-specific processor interfaces
+ * FactorValidationResult - Public validation result
+ * 
+ * Returned to callers with additional context.
  */
-internal object PatternProcessor {
-    fun validate(value: String): ValidationResult {
-        // Will be implemented in PatternProcessor.kt
-        return ValidationResult(true)
-    }
-    
-    fun normalize(value: String): String {
-        return value.trim()
-    }
-}
-
-internal object EmojiProcessor {
-    fun validate(value: String): ValidationResult {
-        return ValidationResult(true)
-    }
-    
-    fun normalize(value: String): String {
-        return value.trim()
-    }
-}
-
-internal object ColorProcessor {
-    fun validate(value: String): ValidationResult {
-        return ValidationResult(true)
-    }
-    
-    fun normalize(value: String): String {
-        return value.trim().uppercase()
-    }
-}
-
-internal object VoiceProcessor {
-    fun validate(value: String): ValidationResult {
-        return ValidationResult(true)
-    }
-    
-    fun normalize(value: String): String {
-        return value.trim().lowercase()
-    }
-}
+data class FactorValidationResult(
+    val isValid: Boolean,
+    val errorMessage: String? = null,
+    val warnings: List<String> = emptyList(),
+    val strength: Int = 0
+)
