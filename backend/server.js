@@ -31,6 +31,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
+// Database module
+const database = require('./database/database');
+
+// Routers
+const enrollmentRouter = require('./routes/enrollmentRouter');
+const verificationRouter = require('./routes/verificationRouter');
+
 // ============================================================================
 // REDIS CLIENT (SECURE)
 // ============================================================================
