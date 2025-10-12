@@ -5,6 +5,8 @@
  * - TLS 1.3 for Redis connections
  * - Password authentication + ACL
  * - AES-256-GCM encryption at rest
+ * - Double encryption (Derive + KMS)
+ * - PostgreSQL for wrapped keys
  * - Rate limiting (DoS protection)
  * - Input validation
  * - Security headers (helmet)
@@ -12,8 +14,8 @@
  * - Memory wiping
  * - GDPR compliance
  * 
- * @version 2.0.0 (Security Hardened)
- * @date 2025-10-11
+ * @version 3.0.0 (Double Encryption Integration)
+ * @date 2025-10-12
  */
 
 require('dotenv').config();
@@ -94,11 +96,12 @@ redisClient.on('ready', () => {
       console.log('✅ Database connection healthy');
     } else {
       console.error('❌ Database connection failed');
+      console.error('   Make sure PostgreSQL is running and configured');
       process.exit(1);
     }
   } catch (error) {
     console.error('❌ Database connection error:', error.message);
-    console.error('   Make sure PostgreSQL is running and configured');
+    console.error('   Check your .env file for DB_HOST, DB_USER, DB_PASSWORD, DB_NAME');
     process.exit(1);
   }
 })();
@@ -137,8 +140,8 @@ const corsOptions = {
   origin: NODE_ENV === 'production' 
     ? ['https://app.zeropay.com', 'https://merchant.zeropay.com'] 
     : '*',
-  methods: ['GET', 'POST', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'DELETE', 'PUT'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Nonce'],
   credentials: true,
   maxAge: 86400 // 24 hours
 };
@@ -167,6 +170,12 @@ app.use((req, res, next) => {
   });
   next();
 });
+
+// ============================================================================
+// MAKE REDIS CLIENT AVAILABLE TO ROUTERS
+// ============================================================================
+
+app.locals.redisClient = redisClient;
 
 // ============================================================================
 // VALIDATION HELPERS
@@ -206,236 +215,23 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
     timestamp: Date.now(),
-    version: '2.0.0',
+    version: '3.0.0',
     redis: redisClient.isReady ? 'connected' : 'disconnected'
   });
-});
-
-/**
- * POST /v1/enrollment/store
- * 
- * Store enrollment data in Redis with encryption
- * 
- * Request body:
- * {
- *   "user_uuid": "uuid-v4",
- *   "factors": {
- *     "PIN": "64-hex-char-digest",
- *     "PATTERN": "64-hex-char-digest"
- *   },
- *   "device_id": "device-identifier",
- *   "ttl_seconds": 86400 (optional, max 86400)
- * }
- */
-app.post('/v1/enrollment/store', async (req, res) => {
-  try {
-    const { user_uuid, factors, device_id, ttl_seconds = 86400 } = req.body;
-    
-    // Validation: Required fields
-    if (!user_uuid || !factors || !device_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: user_uuid, factors, device_id'
-      });
-    }
-    
-    // Validation: UUID format
-    if (!isValidUUID(user_uuid)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid user_uuid format (must be valid UUID v4)'
-      });
-    }
-    
-    // Validation: Minimum 2 factors (PSD3 SCA compliance)
-    const factorCount = Object.keys(factors).length;
-    if (factorCount < 2) {
-      return res.status(400).json({
-        success: false,
-        error: 'At least 2 factors required (PSD3 SCA compliance)'
-      });
-    }
-    
-    // Validation: Maximum 10 factors (DoS protection)
-    if (factorCount > 10) {
-      return res.status(400).json({
-        success: false,
-        error: 'Maximum 10 factors allowed'
-      });
-    }
-    
-    // Validation: Digest format for each factor
-    for (const [factorName, digest] of Object.entries(factors)) {
-      if (!isValidDigest(digest)) {
-        return res.status(400).json({
-          success: false,
-          error: `Invalid digest format for factor '${factorName}' (must be 64 hex chars)`
-        });
-      }
-    }
-    
-    // Validation: Device ID
-    const sanitizedDeviceId = sanitizeDeviceId(device_id);
-    if (!sanitizedDeviceId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid device_id (must be alphanumeric + hyphens, max 128 chars)'
-      });
-    }
-    
-    // Validation: TTL (cap at 24 hours for security)
-    const ttl = Math.min(Math.max(parseInt(ttl_seconds) || 86400, 60), 86400);
-    
-    // Create enrollment data
-    const enrollmentData = {
-      user_uuid,
-      factors,
-      created_at: Date.now(),
-      expires_at: Date.now() + (ttl * 1000),
-      device_id: sanitizedDeviceId
-    };
-    
-    // Encrypt before storing (AES-256-GCM)
-    const plaintext = JSON.stringify(enrollmentData);
-    const encrypted = await encrypt(plaintext);
-    
-    // Store in Redis with TTL
-    const key = `enrollment:${user_uuid}`;
-    await redisClient.setEx(key, ttl, encrypted);
-    
-    console.log(`✅ Stored encrypted enrollment for ${user_uuid.slice(0, 8)}..., TTL: ${ttl}s`);
-    
-    res.json({
-      success: true,
-      enrollment_id: user_uuid,
-      expires_at: enrollmentData.expires_at,
-      ttl_seconds: ttl,
-      message: 'Enrollment stored successfully (encrypted)'
-    });
-    
-  } catch (error) {
-    console.error('❌ Error storing enrollment:', error.message);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
-  }
-});
-
-/**
- * GET /v1/enrollment/retrieve/:uuid
- * 
- * Retrieve and decrypt enrollment data
- */
-app.get('/v1/enrollment/retrieve/:uuid', async (req, res) => {
-  try {
-    const { uuid } = req.params;
-    
-    // Validation: UUID format
-    if (!isValidUUID(uuid)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid UUID format'
-      });
-    }
-    
-    const key = `enrollment:${uuid}`;
-    const encrypted = await redisClient.get(key);
-    
-    if (!encrypted) {
-      return res.status(404).json({
-        success: false,
-        error: 'Enrollment not found or expired'
-      });
-    }
-    
-    // Decrypt data
-    const decrypted = await decrypt(encrypted);
-    const enrollmentData = JSON.parse(decrypted);
-    
-    // Defensive: Check expiration
-    if (Date.now() > enrollmentData.expires_at) {
-      await redisClient.del(key);
-      return res.status(404).json({
-        success: false,
-        error: 'Enrollment expired'
-      });
-    }
-    
-    console.log(`✅ Retrieved enrollment for ${uuid.slice(0, 8)}...`);
-    
-    res.json({
-      success: true,
-      data: enrollmentData
-    });
-    
-  } catch (error) {
-    console.error('❌ Error retrieving enrollment:', error.message);
-    
-    // Don't leak internal errors
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
-  }
-});
-
-/**
- * DELETE /v1/enrollment/delete/:uuid
- * 
- * Delete enrollment (GDPR right to erasure)
- */
-app.delete('/v1/enrollment/delete/:uuid', async (req, res) => {
-  try {
-    const { uuid } = req.params;
-    
-    // Validation: UUID format
-    if (!isValidUUID(uuid)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid UUID format'
-      });
-    }
-    
-    const key = `enrollment:${uuid}`;
-    const deleted = await redisClient.del(key);
-    
-    if (deleted === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Enrollment not found'
-      });
-    }
-    
-    console.log(`✅ Deleted enrollment for ${uuid.slice(0, 8)}... (GDPR)`);
-    
-    res.json({
-      success: true,
-      message: 'Enrollment deleted successfully'
-    });
-    
-  } catch (error) {
-    console.error('❌ Error deleting enrollment:', error.message);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
-  }
 });
 
 /**
  * GET /v1/auth/nonce
  * 
  * Generate nonce for replay protection
- * (Implementation placeholder - expand with Redis-backed nonce tracking)
  */
 app.get('/v1/auth/nonce', (req, res) => {
   const crypto = require('crypto');
-  const nonce = crypto.randomBytes(32).toString('hex');
+  const nonce = crypto.randomUUID();
   const timestamp = Date.now();
   
-  // TODO: Store nonce in Redis with 60-second TTL
-  // await redisClient.setEx(`nonce:${nonce}`, 60, timestamp);
+  // TODO: Store nonce in Redis with 60-second TTL for tracking
+  // await redisClient.setEx(`nonce:${nonce}`, 60, timestamp.toString());
   
   res.json({
     nonce,
@@ -443,6 +239,16 @@ app.get('/v1/auth/nonce', (req, res) => {
     valid_for: 60000 // 60 seconds
   });
 });
+
+// ============================================================================
+// API ROUTERS (Double Encryption)
+// ============================================================================
+
+// Enrollment endpoints (with double encryption: Derive + KMS)
+app.use('/v1/enrollment', enrollmentRouter);
+
+// Verification endpoints (with double decryption)
+app.use('/v1/verification', verificationRouter);
 
 // ============================================================================
 // SERVER STARTUP
@@ -461,13 +267,18 @@ app.listen(PORT, () => {
   console.log('   ✅ TLS 1.3 for Redis');
   console.log('   ✅ Password + ACL authentication');
   console.log('   ✅ AES-256-GCM encryption at rest');
+  console.log('   ✅ Double encryption (Derive + KMS)');
+  console.log('   ✅ PostgreSQL for wrapped keys');
   console.log('   ✅ Rate limiting (DoS protection)');
   console.log('   ✅ Input validation');
   console.log('   ✅ Security headers (helmet)');
   console.log('   ✅ GDPR compliant');
   console.log('   ');
-  console.log(`   Health: http://localhost:${PORT}/health`);
-  console.log(`   Enrollment: http://localhost:${PORT}/v1/enrollment/store`);
+  console.log('   API Endpoints:');
+  console.log(`   - Health: http://localhost:${PORT}/health`);
+  console.log(`   - Nonce: http://localhost:${PORT}/v1/auth/nonce`);
+  console.log(`   - Enrollment: http://localhost:${PORT}/v1/enrollment/store`);
+  console.log(`   - Verification: http://localhost:${PORT}/v1/verification/verify`);
   console.log('   ============================================');
   console.log('');
 });
@@ -482,8 +293,11 @@ process.on('SIGINT', async () => {
   try {
     await redisClient.quit();
     console.log('✅ Redis connection closed');
+    
+    await database.close();
+    console.log('✅ Database connection closed');
   } catch (error) {
-    console.error('❌ Error closing Redis:', error.message);
+    console.error('❌ Error during shutdown:', error.message);
   }
   
   process.exit(0);
@@ -491,7 +305,15 @@ process.on('SIGINT', async () => {
 
 process.on('SIGTERM', async () => {
   console.log('\n⏹️  SIGTERM received, shutting down...');
-  await redisClient.quit();
+  
+  try {
+    await redisClient.quit();
+    await database.close();
+    console.log('✅ Connections closed');
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error.message);
+  }
+  
   process.exit(0);
 });
 
