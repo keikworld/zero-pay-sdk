@@ -84,6 +84,26 @@ redisClient.on('ready', () => {
 })();
 
 // ============================================================================
+// DATABASE CONNECTION TEST
+// ============================================================================
+
+(async () => {
+  try {
+    const healthy = await database.healthCheck();
+    if (healthy) {
+      console.log('✅ Database connection healthy');
+    } else {
+      console.error('❌ Database connection failed');
+      process.exit(1);
+    }
+  } catch (error) {
+    console.error('❌ Database connection error:', error.message);
+    console.error('   Make sure PostgreSQL is running and configured');
+    process.exit(1);
+  }
+})();
+
+// ============================================================================
 // MIDDLEWARE
 // ============================================================================
 
