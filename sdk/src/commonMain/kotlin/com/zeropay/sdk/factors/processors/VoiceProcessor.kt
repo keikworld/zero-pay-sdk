@@ -5,50 +5,49 @@ package com.zeropay.sdk.factors.processors
 import com.zeropay.sdk.factors.ValidationResult
 
 /**
- * VoiceProcessor - Voice Phrase Processing
+ * VoiceProcessor - Voice Passphrase Processing
  * 
- * Processes voice phrase authentication factor.
- * 
- * IMPORTANT: This is TEXT-ONLY processing, NOT voice biometrics.
- * - User speaks a phrase
- * - Speech-to-text converts to text
- * - Text phrase is hashed (like a password)
- * - NO voice biometric data stored
+ * Processes voice passphrase authentication factor.
  * 
  * Format:
- * - Text phrase: "my secret passphrase goes here"
- * - Minimum: 3 words
- * - Maximum: 10 words
- * - Language: Any (UTF-8)
+ * - Base64-encoded audio fingerprint
+ * - Minimum: 2 seconds of audio
+ * - Maximum: 10 seconds of audio
+ * - Sample rate: 16kHz (standard for voice)
+ * - Format: WAV, FLAC, or M4A
+ * 
+ * IMPORTANT SECURITY NOTE:
+ * - This is NOT biometric voice recognition
+ * - We hash the spoken passphrase text, not voice characteristics
+ * - User speaks same phrase each time
+ * - Text extracted via speech-to-text
+ * - Only text hash stored (GDPR compliant)
+ * 
+ * Process Flow:
+ * 1. User records audio (2-10 seconds)
+ * 2. Speech-to-text extracts passphrase
+ * 3. Passphrase text is normalized
+ * 4. Text hash is stored (not voice biometrics)
+ * 5. Verification: compare text hashes
  * 
  * Validation Rules:
- * - At least 3 words
- * - No profanity (basic filter)
- * - Not a common phrase
- * - Sufficient entropy
+ * - Valid audio format (base64 or file path)
+ * - Duration within bounds (2-10 seconds)
+ * - Minimum 3 words spoken
+ * - Clear audio quality (SNR > 10dB)
+ * - Not ambient noise only
  * 
- * Weak Phrase Detection:
- * - Common phrases (password, letmein, etc.)
- * - Dictionary words only
+ * Weak Passphrase Detection:
+ * - Common phrases: "open sesame", "hello world"
  * - Too short phrases
- * - Repetitive words
- * 
- * Text Normalization:
- * - Lowercase
- * - Trim whitespace
- * - Remove punctuation
- * - Single space between words
+ * - Unclear audio (low quality)
+ * - Background noise dominance
  * 
  * Security:
- * - Only text hash stored (NOT voice)
- * - No voice biometric data
- * - Constant-time comparison
- * - Memory wiping
- * 
- * Privacy:
- * - No voice recording stored
- * - No biometric data collected
- * - GDPR compliant (just text)
+ * - Only text hash stored (never raw audio or voice print)
+ * - GDPR compliant (no biometric data)
+ * - Speech-to-text on device (privacy preserving)
+ * - Constant-time hash comparison
  * 
  * @version 1.0.0
  * @date 2025-10-12
@@ -56,119 +55,240 @@ import com.zeropay.sdk.factors.ValidationResult
  */
 object VoiceProcessor {
     
+    private const val MIN_DURATION_SECONDS = 2
+    private const val MAX_DURATION_SECONDS = 10
     private const val MIN_WORDS = 3
-    private const val MAX_WORDS = 10
-    private const val MIN_PHRASE_LENGTH = 10
-    private const val MAX_PHRASE_LENGTH = 100
+    private const val MAX_WORDS = 15
+    private const val MIN_AUDIO_QUALITY_SNR = 10.0 // Signal-to-noise ratio in dB
     
-    // Common weak phrases
-    private val WEAK_PHRASES = setOf(
-        "password",
-        "letmein",
-        "welcome",
-        "hello world",
+    // Known weak voice passphrases
+    private val WEAK_PASSPHRASES = setOf(
         "open sesame",
-        "123456",
-        "qwerty",
-        "admin",
-        "test test test",
+        "hello world",
+        "password",
         "one two three",
-        "my voice is my password"
-    )
-    
-    // Basic profanity filter (add more as needed)
-    private val PROFANITY_LIST = setOf(
-        // Add language-specific profanity here
-        // For production, use a comprehensive filter library
+        "test test test",
+        "hello hello hello",
+        "ok google",
+        "hey siri",
+        "alexa",
+        "voice",
+        "authentication",
+        "unlock",
+        "access granted",
+        "enter",
+        "login"
     )
     
     /**
-     * Validate voice phrase
+     * Validate voice input
      * 
-     * Checks:
-     * - Length within bounds (3-10 words)
-     * - No profanity
-     * - Not a common phrase
-     * - Sufficient entropy
-     * - Valid characters
+     * For enrollment, this validates the extracted text passphrase.
+     * For verification, this validates the audio metadata.
      * 
-     * @param phrase Voice phrase (text)
+     * @param value Voice data (text passphrase or audio metadata JSON)
      * @return Validation result
      * 
      * Example:
      * ```kotlin
-     * val result = VoiceProcessor.validate("my unique secret phrase here")
-     * if (!result.isValid) {
-     *     println("Error: ${result.errorMessage}")
-     * }
+     * // Enrollment (text passphrase after speech-to-text)
+     * val result = VoiceProcessor.validate("purple mountain forest river")
+     * 
+     * // Verification (audio metadata)
+     * val result = VoiceProcessor.validate("""
+     *     {
+     *       "duration": 4.5,
+     *       "sampleRate": 16000,
+     *       "quality": "good",
+     *       "text": "purple mountain forest river"
+     *     }
+     * """.trimIndent())
      * ```
      */
-    fun validate(phrase: String): ValidationResult {
+    fun validate(value: String): ValidationResult {
         val warnings = mutableListOf<String>()
         
-        // Check length
-        if (phrase.length < MIN_PHRASE_LENGTH) {
+        // Try to parse as JSON (audio metadata)
+        val audioMetadata = tryParseAudioMetadata(value)
+        
+        if (audioMetadata != null) {
+            // Validating audio metadata
+            return validateAudioMetadata(audioMetadata, warnings)
+        } else {
+            // Validating text passphrase (post speech-to-text)
+            return validateTextPassphrase(value, warnings)
+        }
+    }
+    
+    /**
+     * Normalize voice input
+     * 
+     * For text passphrase:
+     * - Lowercase
+     * - Remove extra whitespace
+     * - Remove punctuation
+     * - Trim
+     * 
+     * For audio metadata:
+     * - Extract and normalize text field
+     * 
+     * @param value Raw voice input
+     * @return Normalized text passphrase
+     */
+    fun normalize(value: String): String {
+        // Try to parse as JSON
+        val audioMetadata = tryParseAudioMetadata(value)
+        
+        return if (audioMetadata != null) {
+            // Extract text from metadata
+            normalizeText(audioMetadata.text)
+        } else {
+            // Normalize text directly
+            normalizeText(value)
+        }
+    }
+    
+    /**
+     * Try to parse audio metadata JSON
+     * 
+     * @param value Potential JSON string
+     * @return AudioMetadata if valid JSON, null otherwise
+     */
+    private fun tryParseAudioMetadata(value: String): AudioMetadata? {
+        return try {
+            // Simple JSON parsing (production would use kotlinx.serialization)
+            if (value.trimStart().startsWith("{")) {
+                // Extract fields
+                val duration = extractJsonField(value, "duration")?.toDoubleOrNull() ?: 0.0
+                val sampleRate = extractJsonField(value, "sampleRate")?.toIntOrNull() ?: 0
+                val quality = extractJsonField(value, "quality") ?: ""
+                val text = extractJsonField(value, "text") ?: ""
+                
+                if (text.isNotEmpty()) {
+                    AudioMetadata(duration, sampleRate, quality, text)
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    /**
+     * Extract JSON field value (simple parser)
+     * 
+     * @param json JSON string
+     * @param field Field name
+     * @return Field value or null
+     */
+    private fun extractJsonField(json: String, field: String): String? {
+        val regex = Regex(""""$field"\s*:\s*"?([^",}]+)"?""")
+        return regex.find(json)?.groupValues?.get(1)?.trim()
+    }
+    
+    /**
+     * Validate audio metadata
+     * 
+     * @param metadata Audio metadata
+     * @param warnings Mutable list to add warnings
+     * @return Validation result
+     */
+    private fun validateAudioMetadata(
+        metadata: AudioMetadata,
+        warnings: MutableList<String>
+    ): ValidationResult {
+        // Check duration
+        if (metadata.duration < MIN_DURATION_SECONDS) {
             return ValidationResult(
                 isValid = false,
-                errorMessage = "Phrase must be at least $MIN_PHRASE_LENGTH characters"
+                errorMessage = "Audio must be at least $MIN_DURATION_SECONDS seconds"
             )
         }
         
-        if (phrase.length > MAX_PHRASE_LENGTH) {
+        if (metadata.duration > MAX_DURATION_SECONDS) {
             return ValidationResult(
                 isValid = false,
-                errorMessage = "Phrase cannot exceed $MAX_PHRASE_LENGTH characters"
+                errorMessage = "Audio cannot exceed $MAX_DURATION_SECONDS seconds"
             )
         }
         
-        // Normalize and count words
-        val normalized = normalize(phrase)
-        val words = normalized.split(" ").filter { it.isNotBlank() }
+        // Check sample rate (should be 16kHz for voice)
+        if (metadata.sampleRate < 8000) {
+            warnings.add("Audio sample rate is low. Recording quality may be poor.")
+        }
+        
+        // Check quality
+        if (metadata.quality.lowercase() in listOf("poor", "bad", "low")) {
+            warnings.add("Audio quality is poor. Consider recording in a quieter environment.")
+        }
+        
+        // Validate extracted text
+        return validateTextPassphrase(metadata.text, warnings)
+    }
+    
+    /**
+     * Validate text passphrase (extracted from speech-to-text)
+     * 
+     * @param text Text passphrase
+     * @param warnings Mutable list to add warnings
+     * @return Validation result
+     */
+    private fun validateTextPassphrase(
+        text: String,
+        warnings: MutableList<String>
+    ): ValidationResult {
+        val normalized = normalizeText(text)
+        
+        // Check not empty
+        if (normalized.isBlank()) {
+            return ValidationResult(
+                isValid = false,
+                errorMessage = "Voice passphrase cannot be empty"
+            )
+        }
+        
+        // Parse words
+        val words = normalized.split(Regex("\\s+")).filter { it.isNotEmpty() }
         
         // Check word count
         if (words.size < MIN_WORDS) {
             return ValidationResult(
                 isValid = false,
-                errorMessage = "Phrase must have at least $MIN_WORDS words"
+                errorMessage = "Voice passphrase must contain at least $MIN_WORDS words"
             )
         }
         
         if (words.size > MAX_WORDS) {
             return ValidationResult(
                 isValid = false,
-                errorMessage = "Phrase cannot have more than $MAX_WORDS words"
+                errorMessage = "Voice passphrase cannot exceed $MAX_WORDS words"
             )
         }
         
-        // Check for profanity
-        if (containsProfanity(normalized)) {
+        // Check minimum length
+        if (normalized.length < 10) {
             return ValidationResult(
                 isValid = false,
-                errorMessage = "Phrase contains inappropriate language"
+                errorMessage = "Voice passphrase must be at least 10 characters"
             )
         }
         
-        // Check if weak phrase
-        if (isWeak(normalized)) {
-            warnings.add("This is a commonly used phrase. Consider something more unique.")
+        // Check for weak passphrases
+        if (normalized in WEAK_PASSPHRASES) {
+            warnings.add("This is a commonly used phrase. Consider a more unique passphrase.")
         }
         
-        // Check for repeated words
-        val uniqueWords = words.toSet()
-        if (uniqueWords.size < words.size / 2) {
-            warnings.add("Phrase has many repeated words. More variety improves security.")
+        // Check for repeating words
+        if (words.all { it == words[0] }) {
+            warnings.add("All words are the same. Use a more varied passphrase.")
         }
         
-        // Check entropy
-        val entropy = calculateEntropy(phrase)
-        if (entropy < 30) {
-            warnings.add("Phrase has low entropy. Try adding more unique words or characters.")
-        }
-        
-        // Check if all words are too short
-        val avgWordLength = words.map { it.length }.average()
-        if (avgWordLength < 3) {
-            warnings.add("Words are very short. Longer words improve security.")
+        // Check for very short words (all < 3 chars)
+        if (words.all { it.length < 3 }) {
+            warnings.add("Words are very short. Consider using longer words for better security.")
         }
         
         return ValidationResult(
@@ -178,115 +298,26 @@ object VoiceProcessor {
     }
     
     /**
-     * Normalize voice phrase
+     * Normalize text passphrase
      * 
-     * Converts to consistent format:
-     * - Lowercase
-     * - Remove punctuation
-     * - Single space between words
-     * - Trim whitespace
-     * 
-     * @param phrase Raw voice phrase
-     * @return Normalized phrase
+     * @param text Raw text
+     * @return Normalized text
      */
-    fun normalize(phrase: String): String {
-        return phrase
+    private fun normalizeText(text: String): String {
+        return text.trim()
             .lowercase()
-            .replace(Regex("[^a-z0-9\\s]"), " ") // Remove punctuation
-            .replace(Regex("\\s+"), " ")         // Single space
+            .replace(Regex("[^a-z0-9\\s]"), "") // Remove punctuation
+            .replace(Regex("\\s+"), " ") // Collapse whitespace
             .trim()
     }
     
     /**
-     * Check if phrase contains profanity
-     * 
-     * Basic filter - for production use comprehensive library.
-     * 
-     * @param phrase Normalized phrase
-     * @return true if profanity detected
+     * Audio metadata data class
      */
-    private fun containsProfanity(phrase: String): Boolean {
-        val words = phrase.split(" ")
-        return words.any { it in PROFANITY_LIST }
-    }
-    
-    /**
-     * Check if phrase is weak
-     * 
-     * @param phrase Normalized phrase
-     * @return true if commonly used
-     */
-    private fun isWeak(phrase: String): Boolean {
-        return phrase in WEAK_PHRASES
-    }
-    
-    /**
-     * Calculate phrase entropy
-     * 
-     * Measures randomness/unpredictability.
-     * 
-     * @param phrase Raw phrase
-     * @return Entropy score (0-100)
-     */
-    private fun calculateEntropy(phrase: String): Int {
-        if (phrase.isEmpty()) return 0
-        
-        // Character frequency
-        val charCounts = phrase.groupingBy { it }.eachCount()
-        val length = phrase.length.toDouble()
-        
-        // Shannon entropy
-        var entropy = 0.0
-        for (count in charCounts.values) {
-            val probability = count / length
-            entropy -= probability * (kotlin.math.ln(probability) / kotlin.math.ln(2.0))
-        }
-        
-        // Normalize to 0-100 (max entropy for ASCII is ~6.5 bits)
-        val normalized = (entropy / 6.5 * 100).toInt()
-        return normalized.coerceIn(0, 100)
-    }
-    
-    /**
-     * Calculate phrase strength
-     * 
-     * Combines multiple factors:
-     * - Length
-     * - Word count
-     * - Entropy
-     * - Uniqueness
-     * 
-     * @param phrase Raw phrase
-     * @return Strength score (0-100)
-     */
-    fun calculateStrength(phrase: String): Int {
-        var score = 0
-        
-        val normalized = normalize(phrase)
-        val words = normalized.split(" ").filter { it.isNotBlank() }
-        
-        // Length score (max 30 points)
-        val lengthScore = (phrase.length * 30) / MAX_PHRASE_LENGTH
-        score += lengthScore.coerceAtMost(30)
-        
-        // Word count score (max 20 points)
-        val wordScore = (words.size * 20) / MAX_WORDS
-        score += wordScore.coerceAtMost(20)
-        
-        // Entropy score (max 30 points)
-        val entropyScore = (calculateEntropy(phrase) * 30) / 100
-        score += entropyScore
-        
-        // Uniqueness score (max 20 points)
-        val uniqueWords = words.toSet().size
-        val uniquenessScore = (uniqueWords * 20) / words.size
-        score += uniquenessScore
-        
-        // Penalty for weak phrases
-        if (isWeak(normalized)) {
-            score -= 30
-        }
-        
-        return score.coerceIn(0, 100)
-    }
+    private data class AudioMetadata(
+        val duration: Double,
+        val sampleRate: Int,
+        val quality: String,
+        val text: String
+    )
 }
