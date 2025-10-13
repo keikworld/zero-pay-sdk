@@ -167,7 +167,7 @@ Path: sdk/src/androidMain/kotlin/com/zeropay/sdk/storage/SecureStorage.android.k
 Path: sdk/src/iosMain/kotlin/com/zeropay/sdk/storage/SecureStorage.ios.kt
 Lines: ~500 total
 Features:
-  - Android: EncryptedSharedPreferences
+  x Android: EncryptedSharedPreferences
   - iOS: Keychain
   - Web: IndexedDB with encryption
   - Unified interface
@@ -337,7 +337,7 @@ Status: ✅ Will provide complete code
 
 **4.2 NonceTracker.kt** - Replay protection
 ```
-Path: sdk/src/commonMain/kotlin/com/zeropay/sdk/security/NonceTracker.kt
+Path: sdk/src/commonMain/kotlin/com/zeropay/sdk/security/NonceTracker.kt - Already exists as NonceManager inside NetworkSecurity.kt
 Lines: ~300
 Features:
   - Nonce generation (CSPRNG)
@@ -377,7 +377,10 @@ Status: ✅ Will provide complete code
 
 #### Files to Create:
 
-**5.1 RateLimiter.kt** - Client-side rate limiting
+**5.1 RateLimiter.kt** - Client-side rate limiting -  Exists in TWO places:
+
+✅ sdk/src/commonMain/kotlin/com/zeropay/sdk/RateLimiter.kt
+✅ merchant/src/commonMain/kotlin/com/zeropay/merchant/fraud/RateLimiter.kt
 ```
 Path: sdk/src/commonMain/kotlin/com/zeropay/sdk/security/RateLimiter.kt
 Lines: ~300
@@ -389,7 +392,9 @@ Features:
 Status: ✅ Will provide complete code
 ```
 
-**5.2 FraudDetector.kt** - Fraud detection
+**5.2 FraudDetector.kt** - Fraud detection - Exists in Kotlin:
+
+✅ merchant/src/commonMain/kotlin/com/zeropay/merchant/fraud/FraudDetector.kt
 ```
 Path: sdk/src/commonMain/kotlin/com/zeropay/sdk/security/FraudDetector.kt
 Lines: ~400
@@ -414,7 +419,7 @@ Features:
 Status: ✅ Will provide complete code
 ```
 
-**5.4 fraudDetector.js** - Backend fraud detection
+**5.4 fraudDetector.js** - Backend fraud detection NOT NEEDED (fraud detection happens on merchant SDK, not backend) - needs more thought
 ```
 Path: backend/middleware/fraudDetector.js
 Lines: ~500
