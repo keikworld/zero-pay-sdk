@@ -675,10 +675,10 @@ Status: ✅ Will provide complete code
 Path: backend/routes/enrollmentRouter.js
 Lines: ~600
 Features:
-  - POST /v1/enrollment/store (with double encryption)
-  - POST /v1/enrollment/update
-  - DELETE /v1/enrollment/delete (GDPR)
-  - GET /v1/enrollment/status
+  x POST /v1/enrollment/store (with double encryption)
+  x POST /v1/enrollment/update
+  x DELETE /v1/enrollment/delete (GDPR)
+  x GET /v1/enrollment/status
 Status: ✅ Will provide complete code
 ```
 
@@ -687,10 +687,10 @@ Status: ✅ Will provide complete code
 Path: backend/routes/verificationRouter.js
 Lines: ~700
 Features:
-  - POST /v1/verification/initiate
-  - POST /v1/verification/challenge
-  - POST /v1/verification/verify (with double decryption)
-  - POST /v1/verification/complete
+  x POST /v1/verification/initiate
+  x POST /v1/verification/challenge
+  x POST /v1/verification/verify (with double decryption)
+  x POST /v1/verification/complete
 Status: ✅ Will provide complete code
 ```
 
