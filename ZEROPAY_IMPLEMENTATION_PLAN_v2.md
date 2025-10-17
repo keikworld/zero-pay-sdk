@@ -385,10 +385,10 @@ Status: ✅ Will provide complete code
 Path: sdk/src/commonMain/kotlin/com/zeropay/sdk/security/RateLimiter.kt
 Lines: ~300
 Features:
-  - Per-user rate limiting
-  - Exponential backoff
-  - Attempt tracking
-  - Lockout mechanism
+  x Per-user rate limiting
+  x Exponential backoff
+  x Attempt tracking
+  x Lockout mechanism
 Status: ✅ Will provide complete code
 ```
 
@@ -399,10 +399,10 @@ Status: ✅ Will provide complete code
 Path: sdk/src/commonMain/kotlin/com/zeropay/sdk/security/FraudDetector.kt
 Lines: ~400
 Features:
-  - Anomaly detection
-  - Device fingerprinting
-  - IP tracking
-  - Behavior analysis
+  x Anomaly detection
+  x Device fingerprinting
+  x IP tracking
+  x Behavior analysis
 Status: ✅ Will provide complete code
 ```
 
@@ -424,11 +424,11 @@ Status: ✅ Will provide complete code
 Path: backend/middleware/fraudDetector.js
 Lines: ~500
 Features:
-  - Device fingerprint validation
-  - IP reputation checking
-  - Velocity checks
-  - Suspicious pattern detection
-  - Alert system
+  x Device fingerprint validation
+  x IP reputation checking
+  x Velocity checks
+  x Suspicious pattern detection
+  x Alert system
 Status: ✅ Will provide complete code
 ```
 
