@@ -47,10 +47,12 @@
     "winston": "^3.11.0"
     "mocha": "^10.2.0",
     "chai": "^4.3.10"
+    "axios": "^1.6.0"
   },
   "scripts": {
     "test": "mocha backend/tests/**/*.test.js --timeout 5000",
     "test:day9-10": "mocha backend/tests/day9-10.test.js --timeout 5000"
+    "test:blockchain": "mocha backend/tests/blockchain.test.js --timeout 10000"
   },
   "engines": {
     "node": ">=18.0.0",
