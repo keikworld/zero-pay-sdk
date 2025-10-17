@@ -1,6 +1,7 @@
 /*
  * ZeroPay SDK - Kotlin Multiplatform Configuration
  * Supports: Android, iOS, Web
+ * Version: 2.0.0 (with Blockchain Integration)
  */
 
 plugins {
@@ -56,6 +57,10 @@ kotlin {
                 
                 // Serialization (multiplatform)
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+                
+                // ============== NEW: BLOCKCHAIN DEPENDENCIES ==============
+                // OkHttp for RPC calls (multiplatform compatible)
+                implementation("com.squareup.okhttp3:okhttp:4.12.0")
             }
         }
         
@@ -124,10 +129,17 @@ kotlin {
                 // Gson (for JSON serialization)
                 implementation("com.google.code.gson:gson:2.10.1")
                 
+                // JSON (org.json) - Android built-in, but explicitly declare
+                implementation("org.json:json:20231013")
+                
                 // ============== UTILITIES ==============
                 
                 // Timber (logging - optional but recommended)
                 implementation("com.jakewharton.timber:timber:5.0.1")
+                
+                // ============== NEW: BLOCKCHAIN SPECIFIC ==============
+                
+                // None needed - OkHttp already included above
             }
         }
         
@@ -147,6 +159,11 @@ kotlin {
                 
                 // Robolectric (Android unit tests without emulator)
                 implementation("org.robolectric:robolectric:4.11.1")
+                
+                // ============== NEW: BLOCKCHAIN TESTING ==============
+                
+                // OkHttp MockWebServer (for testing RPC calls)
+                implementation("com.squareup.okhttp3:mockwebserver:4.12.0")
             }
         }
         
@@ -207,8 +224,9 @@ android {
         consumerProguardFiles("consumer-rules.pro")
         
         // BuildConfig fields (if needed)
-        buildConfigField("String", "SDK_VERSION", "\"1.0.0\"")
+        buildConfigField("String", "SDK_VERSION", "\"2.0.0\"")
         buildConfigField("boolean", "DEBUG_MODE", "false")
+        buildConfigField("boolean", "BLOCKCHAIN_ENABLED", "true")
     }
     
     compileOptions {
@@ -326,6 +344,32 @@ tasks.register("printDependencies") {
         configurations.findByName("androidMainImplementation")?.dependencies?.forEach {
             println("${it.group}:${it.name}:${it.version}")
         }
+    }
+}
+
+// NEW: Task to verify blockchain dependencies
+tasks.register("verifyBlockchainDependencies") {
+    doLast {
+        println("\n=== Blockchain Dependencies Check ===")
+        
+        val requiredDeps = listOf(
+            "com.squareup.okhttp3:okhttp",
+            "org.jetbrains.kotlinx:kotlinx-serialization-json",
+            "androidx.security:security-crypto"
+        )
+        
+        val androidDeps = configurations.findByName("androidMainImplementation")?.dependencies
+        
+        requiredDeps.forEach { depName ->
+            val found = androidDeps?.any { 
+                "${it.group}:${it.name}".contains(depName.substringBefore(":"))
+            } ?: false
+            
+            val status = if (found) "✅" else "❌"
+            println("$status $depName")
+        }
+        
+        println("\n✅ Blockchain integration ready!")
     }
 }
 
