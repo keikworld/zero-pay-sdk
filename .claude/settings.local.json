@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add README.md CLAUDE.md backend/.env.example)",
+      "Bash(./gradlew dependencies --configuration androidRuntimeClasspath)",
+      "Bash(npm install)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
