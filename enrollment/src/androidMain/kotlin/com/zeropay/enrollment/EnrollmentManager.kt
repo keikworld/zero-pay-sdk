@@ -11,18 +11,28 @@ import com.zeropay.enrollment.payment.PaymentProviderManager
 import com.zeropay.enrollment.security.AliasGenerator
 import com.zeropay.enrollment.security.UUIDManager
 import com.zeropay.sdk.Factor
+import com.zeropay.sdk.api.EnrollmentClient
 import com.zeropay.sdk.cache.RedisCacheClient
 import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.integration.BackendIntegration
+import com.zeropay.sdk.models.api.FactorDigest
 import com.zeropay.sdk.storage.KeyStoreManager
 import kotlinx.coroutines.*
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Enrollment Manager - PRODUCTION VERSION v3.0
- * 
+ * Enrollment Manager - PRODUCTION VERSION v4.0
+ *
  * Enhanced orchestrator for complete user enrollment with wizard integration.
- * 
+ *
+ * NEW IN V4.0:
+ * - ✅ Backend API integration with automatic fallback
+ * - ✅ Circuit breaker pattern for resilience
+ * - ✅ Retry logic with exponential backoff
+ * - ✅ Metrics collection
+ *
  * NEW IN V3.0:
  * - ✅ Wizard integration (5-step flow)
  * - ✅ Consent validation (GDPR compliance)
@@ -31,10 +41,9 @@ import java.util.concurrent.atomic.AtomicInteger
  * - ✅ Rollback on failure
  * - ✅ Audit logging
  * - ✅ Rate limiting
- * - ✅ Retry logic with exponential backoff
  * - ✅ Comprehensive error handling
  * - ✅ Production-ready observability
- * 
+ *
  * Features:
  * - Multi-factor enrollment (all 13+ factors)
  * - PSD3 SCA compliance (min 6 factors, 2+ categories)
@@ -43,7 +52,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * - Thread-safe operations
  * - Atomic transactions with rollback
  * - Memory wiping
- * 
+ *
  * Security:
  * - Input validation per factor
  * - DoS protection (max 10 factors)
@@ -51,24 +60,28 @@ import java.util.concurrent.atomic.AtomicInteger
  * - Constant-time comparisons
  * - Nonce-based replay protection
  * - Encrypted storage (AES-256-GCM)
- * 
+ *
  * Architecture:
  * - Single responsibility (enrollment only)
  * - Dependency injection
- * - Graceful degradation (KeyStore primary, Redis secondary)
+ * - Graceful degradation (API → Cache → KeyStore)
  * - Idempotent operations
- * 
+ *
  * @param keyStoreManager Secure local storage
- * @param redisCacheClient Distributed cache
+ * @param redisCacheClient Distributed cache (fallback)
+ * @param enrollmentClient Backend API client (optional, primary)
+ * @param backendIntegration Backend integration utility (optional)
  * @param consentManager Consent tracking (optional)
  * @param paymentProviderManager Payment linking (optional)
- * 
- * @version 3.0.0
- * @date 2025-10-08
+ *
+ * @version 4.0.0
+ * @date 2025-10-18
  */
 class EnrollmentManager(
     private val keyStoreManager: KeyStoreManager,
     private val redisCacheClient: RedisCacheClient,
+    private val enrollmentClient: EnrollmentClient? = null,
+    private val backendIntegration: BackendIntegration? = null,
     private val consentManager: ConsentManager? = null,
     private val paymentProviderManager: PaymentProviderManager? = null
 ) {
@@ -223,18 +236,27 @@ class EnrollmentManager(
                 )
             }
             
-            // ========== STEP 8: CACHE IN REDIS (SECONDARY) ==========
-            
+            // ========== STEP 8: BACKEND API ENROLLMENT (PRIMARY) ==========
+
             val deviceId = generateDeviceId()
-            val cacheResult = withRetry(MAX_RETRY_ATTEMPTS) {
-                redisCacheClient.storeEnrollment(uuid, factorDigests, deviceId)
-            }
-            
-            if (cacheResult.isFailure) {
-                Log.w(TAG, "Failed to cache in Redis (non-critical): ${cacheResult.exceptionOrNull()?.message}")
-                // Continue - KeyStore is primary, Redis is secondary
+            val apiEnrollmentResult = tryApiEnrollment(uuid, factorDigests, deviceId, session)
+
+            if (apiEnrollmentResult) {
+                Log.d(TAG, "Successfully enrolled via API")
             } else {
-                Log.d(TAG, "Successfully cached in Redis")
+                Log.w(TAG, "API enrollment unavailable or failed, using cache fallback")
+
+                // ========== STEP 8B: CACHE IN REDIS (FALLBACK) ==========
+                val cacheResult = withRetry(MAX_RETRY_ATTEMPTS) {
+                    redisCacheClient.storeEnrollment(uuid, factorDigests, deviceId)
+                }
+
+                if (cacheResult.isFailure) {
+                    Log.w(TAG, "Failed to cache in Redis (non-critical): ${cacheResult.exceptionOrNull()?.message}")
+                    // Continue - KeyStore is primary, Redis is secondary
+                } else {
+                    Log.d(TAG, "Successfully cached in Redis")
+                }
             }
             
             // ========== STEP 9: LINK PAYMENT PROVIDERS (OPTIONAL) ==========
@@ -333,8 +355,96 @@ class EnrollmentManager(
         enrollWithSession(session)
     }
     
+    // ==================== API INTEGRATION METHODS ====================
+
+    /**
+     * Try API enrollment with automatic fallback
+     *
+     * @return true if API enrollment succeeded, false if unavailable/failed
+     */
+    private suspend fun tryApiEnrollment(
+        uuid: String,
+        factorDigests: Map<Factor, ByteArray>,
+        deviceId: String,
+        session: EnrollmentSession
+    ): Boolean {
+        // Check if API integration is available
+        if (enrollmentClient == null) {
+            Log.d(TAG, "EnrollmentClient not configured, skipping API enrollment")
+            return false
+        }
+
+        return try {
+            // Convert factor digests to API format
+            val apiFactors = factorDigests.map { (factor, digest) ->
+                FactorDigest(
+                    type = factor.name,
+                    digest = CryptoUtils.bytesToHex(digest)
+                )
+            }
+
+            // Build enrollment request
+            val request = com.zeropay.sdk.models.api.EnrollmentRequest(
+                user_uuid = uuid,
+                factors = apiFactors,
+                device_id = deviceId,
+                ttl_seconds = 86400, // 24 hours
+                nonce = generateNonce(),
+                timestamp = Instant.now().toString(),
+                gdpr_consent = session.consents.values.all { it },
+                consent_timestamp = Instant.now().toString()
+            )
+
+            // Execute via BackendIntegration if available, otherwise direct
+            val response = if (backendIntegration != null) {
+                backendIntegration.execute(
+                    primary = { enrollmentClient.enroll(request).getOrThrow() },
+                    fallback = null, // We handle fallback at manager level
+                    operationName = "enrollment"
+                )
+            } else {
+                enrollmentClient.enroll(request).getOrThrow()
+            }
+
+            Log.d(TAG, "API enrollment successful: alias=${response.alias}, factors=${response.enrolled_factors}")
+
+            // Optionally sync to local cache
+            syncApiToCache(uuid, factorDigests, deviceId)
+
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "API enrollment failed: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Sync API enrollment to local cache
+     */
+    private suspend fun syncApiToCache(
+        uuid: String,
+        factorDigests: Map<Factor, ByteArray>,
+        deviceId: String
+    ) {
+        try {
+            redisCacheClient.storeEnrollment(uuid, factorDigests, deviceId)
+            Log.d(TAG, "Synced API enrollment to local cache")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to sync to cache: ${e.message}")
+        }
+    }
+
+    /**
+     * Generate cryptographic nonce
+     */
+    private fun generateNonce(): String {
+        val randomBytes = ByteArray(32)
+        java.security.SecureRandom().nextBytes(randomBytes)
+        return randomBytes.joinToString("") { "%02x".format(it) }
+    }
+
     // ==================== VALIDATION METHODS ====================
-    
+
     /**
      * Validate enrollment session completeness
      */

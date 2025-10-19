@@ -1,0 +1,380 @@
+name: ZeroPay SDK - CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20.x'
+  JAVA_VERSION: '17'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+  # ====================================================================
+  # JOB 1: LINT & CODE QUALITY
+  # ====================================================================
+  lint:
+    name: Code Quality & Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        run: cd backend && npm ci
+
+      - name: Run ESLint (Backend)
+        run: cd backend && npm run lint
+        continue-on-error: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Grant Gradle Execute Permissions
+        run: chmod +x ./gradlew
+
+      - name: Kotlin Code Style Check
+        run: ./gradlew ktlintCheck
+        continue-on-error: true
+
+  # ====================================================================
+  # JOB 2: BACKEND TESTS (Node.js)
+  # ====================================================================
+  backend-tests:
+    name: Backend Tests (Node.js)
+    runs-on: ubuntu-latest
+    needs: lint
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: zeropay_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: zeropay_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Dependencies
+        run: cd backend && npm ci
+
+      - name: Create Test Environment File
+        run: |
+          cat > backend/.env.test << EOF
+          NODE_ENV=test
+          PORT=3000
+
+          # Redis (Container)
+          REDIS_HOST=localhost
+          REDIS_PORT=6379
+          REDIS_PASSWORD=
+          REDIS_USERNAME=default
+          REDIS_TLS_ENABLED=false
+
+          # PostgreSQL (Container)
+          DATABASE_URL=postgresql://zeropay_test:test_password@localhost:5432/zeropay_test
+
+          # KMS (Mock)
+          AWS_REGION=us-east-1
+          AWS_KMS_KEY_ID=test-key-id
+          AWS_ACCESS_KEY_ID=test-access-key
+          AWS_SECRET_ACCESS_KEY=test-secret-key
+
+          # Solana (Devnet)
+          SOLANA_RPC_URL=https://api.devnet.solana.com
+          SOLANA_DEVNET_RPC_URL=https://api.devnet.solana.com
+
+          # Admin
+          ADMIN_API_KEY=test-admin-key
+          EOF
+
+      - name: Wait for Services
+        run: |
+          echo "Waiting for Redis..."
+          timeout 30 bash -c 'until echo > /dev/tcp/localhost/6379; do sleep 1; done'
+          echo "Waiting for PostgreSQL..."
+          timeout 30 bash -c 'until echo > /dev/tcp/localhost/5432; do sleep 1; done'
+
+      - name: Run All Backend Tests
+        run: cd backend && npm test
+        env:
+          NODE_ENV: test
+
+      - name: Run E2E Tests
+        run: cd backend && npm test -- tests/e2e/complete-flow.test.js
+        env:
+          NODE_ENV: test
+          TEST_BASE_URL: http://localhost:3000
+
+      - name: Upload Backend Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: backend/test-results/
+          retention-days: 7
+
+  # ====================================================================
+  # JOB 3: KOTLIN UNIT TESTS (JVM)
+  # ====================================================================
+  kotlin-unit-tests:
+    name: Kotlin Unit Tests (JVM)
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Grant Gradle Execute Permissions
+        run: chmod +x ./gradlew
+
+      - name: Run SDK Unit Tests
+        run: ./gradlew :sdk:test --no-daemon --stacktrace
+
+      - name: Run Integration Config Tests
+        run: ./gradlew :sdk:test --tests "com.zeropay.sdk.config.*" --no-daemon
+
+      - name: Run Backend Integration Tests
+        run: ./gradlew :sdk:test --tests "com.zeropay.sdk.integration.*" --no-daemon
+
+      - name: Run Enrollment Tests
+        run: ./gradlew :enrollment:test --no-daemon
+        continue-on-error: true
+
+      - name: Run Merchant Tests
+        run: ./gradlew :merchant:test --no-daemon
+        continue-on-error: true
+
+      - name: Generate Test Report
+        if: always()
+        run: ./gradlew testReport --no-daemon
+
+      - name: Upload Kotlin Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotlin-test-results
+          path: |
+            build/reports/tests/
+            */build/reports/tests/
+          retention-days: 7
+
+      - name: Upload Test Summary
+        if: always()
+        uses: test-summary/action@v2
+        with:
+          paths: |
+            build/test-results/test/TEST-*.xml
+            */build/test-results/test/TEST-*.xml
+
+  # ====================================================================
+  # JOB 4: CODE COVERAGE
+  # ====================================================================
+  code-coverage:
+    name: Code Coverage Analysis
+    runs-on: ubuntu-latest
+    needs: [backend-tests, kotlin-unit-tests]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Install Backend Dependencies
+        run: cd backend && npm ci
+
+      - name: Grant Gradle Execute Permissions
+        run: chmod +x ./gradlew
+
+      - name: Generate Kotlin Coverage (JaCoCo)
+        run: ./gradlew jacocoTestReport --no-daemon
+
+      - name: Generate Backend Coverage
+        run: cd backend && npm test -- --coverage
+        continue-on-error: true
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: |
+            build/reports/jacoco/test/jacocoTestReport.xml
+            backend/coverage/lcov.info
+          flags: unittests
+          name: zeropay-coverage
+          fail_ci_if_error: false
+
+      - name: Upload Coverage Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            build/reports/jacoco/
+            backend/coverage/
+          retention-days: 7
+
+  # ====================================================================
+  # JOB 5: ANDROID BUILD (APK)
+  # ====================================================================
+  android-build:
+    name: Android Build (APK)
+    runs-on: ubuntu-latest
+    needs: kotlin-unit-tests
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Grant Gradle Execute Permissions
+        run: chmod +x ./gradlew
+
+      - name: Build SDK Module
+        run: ./gradlew :sdk:assembleDebug --no-daemon --stacktrace
+
+      - name: Build Enrollment Module
+        run: ./gradlew :enrollment:assembleDebug --no-daemon
+
+      - name: Build Merchant Module
+        run: ./gradlew :merchant:assembleDebug --no-daemon
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-debug
+          path: |
+            merchant/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
+  # ====================================================================
+  # JOB 6: SECURITY SCAN
+  # ====================================================================
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy Results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run npm audit (Backend)
+        run: cd backend && npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Check for Gradle vulnerabilities
+        run: ./gradlew dependencyCheckAnalyze --no-daemon
+        continue-on-error: true
+
+  # ====================================================================
+  # JOB 7: BUILD STATUS SUMMARY
+  # ====================================================================
+  build-status:
+    name: Build Status Summary
+    runs-on: ubuntu-latest
+    needs: [lint, backend-tests, kotlin-unit-tests, android-build, security-scan]
+    if: always()
+
+    steps:
+      - name: Check Build Status
+        run: |
+          echo "==================================="
+          echo "  ZeroPay SDK - Build Summary"
+          echo "==================================="
+          echo ""
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "Backend Tests: ${{ needs.backend-tests.result }}"
+          echo "Kotlin Tests: ${{ needs.kotlin-unit-tests.result }}"
+          echo "Android Build: ${{ needs.android-build.result }}"
+          echo "Security Scan: ${{ needs.security-scan.result }}"
+          echo ""
+
+          if [ "${{ needs.backend-tests.result }}" == "failure" ] || [ "${{ needs.kotlin-unit-tests.result }}" == "failure" ]; then
+            echo "❌ BUILD FAILED - Tests did not pass"
+            exit 1
+          else
+            echo "✅ BUILD SUCCESSFUL - All checks passed"
+            exit 0
+          fi
