@@ -2,6 +2,7 @@
 
 package com.zeropay.enrollment
 
+import android.content.Context
 import android.util.Log
 import com.zeropay.enrollment.config.EnrollmentConfig
 import com.zeropay.enrollment.consent.ConsentManager
@@ -16,6 +17,7 @@ import com.zeropay.sdk.cache.RedisCacheClient
 import com.zeropay.sdk.crypto.CryptoUtils
 import com.zeropay.sdk.integration.BackendIntegration
 import com.zeropay.sdk.models.api.FactorDigest
+import com.zeropay.sdk.security.SecurityPolicy
 import com.zeropay.sdk.storage.KeyStoreManager
 import kotlinx.coroutines.*
 import java.time.Instant
@@ -142,16 +144,36 @@ class EnrollmentManager(
      * @return EnrollmentResult.Success or EnrollmentResult.Failure
      */
     suspend fun enrollWithSession(
+        context: Context,
         session: EnrollmentSession
     ): EnrollmentResult = withContext(Dispatchers.IO) {
         val startTime = System.currentTimeMillis()
         val enrollmentId = "${session.sessionId}-${System.currentTimeMillis()}"
-        
+
         try {
             Log.d(TAG, "Starting enrollment: $enrollmentId")
-            
-            // ========== STEP 1: SESSION VALIDATION ==========
-            
+
+            // ========== STEP 1: SECURITY CHECK ==========
+
+            val securityDecision = performSecurityCheck(context, session.userId)
+            if (!SecurityPolicy.allowsAuthentication(securityDecision.action)) {
+                Log.w(TAG, "Security check failed: ${securityDecision.action}, threats: ${securityDecision.threats}")
+                return@withContext createSecurityBlockedResult(
+                    securityDecision = securityDecision,
+                    enrollmentId = enrollmentId
+                )
+            }
+
+            // Log security warnings/degraded mode
+            if (securityDecision.action == SecurityPolicy.SecurityAction.WARN) {
+                Log.w(TAG, "Security warning detected: ${securityDecision.userMessage}")
+            } else if (securityDecision.action == SecurityPolicy.SecurityAction.DEGRADE) {
+                Log.w(TAG, "Degraded mode active: ${securityDecision.userMessage}")
+                // TODO: Alert merchant if needed
+            }
+
+            // ========== STEP 2: SESSION VALIDATION ==========
+
             val sessionValidation = validateSession(session)
             if (sessionValidation.isFailure) {
                 return@withContext createFailureResult(
@@ -160,8 +182,8 @@ class EnrollmentManager(
                     enrollmentId = enrollmentId
                 )
             }
-            
-            // ========== STEP 2: RATE LIMITING ==========
+
+            // ========== STEP 3: RATE LIMITING ==========
             
             val rateLimitCheck = checkRateLimit(session.userId!!)
             if (!rateLimitCheck) {
@@ -662,6 +684,63 @@ class EnrollmentManager(
     /**
      * Create failure result
      */
+    // ==================== SECURITY ====================
+
+    /**
+     * Perform comprehensive security check before enrollment
+     */
+    private suspend fun performSecurityCheck(
+        context: Context,
+        userId: String?
+    ): SecurityPolicy.SecurityDecision = withContext(Dispatchers.Default) {
+        try {
+            Log.d(TAG, "Performing security check for enrollment")
+            SecurityPolicy.evaluateThreats(context, userId)
+        } catch (e: Exception) {
+            Log.e(TAG, "Security check error: ${e.message}", e)
+            // On error, default to ALLOW to prevent blocking legitimate users
+            // But log the error for investigation
+            SecurityPolicy.SecurityDecision(
+                action = SecurityPolicy.SecurityAction.ALLOW,
+                threats = emptyList(),
+                severity = com.zeropay.sdk.security.AntiTampering.Severity.NONE,
+                userMessage = "Security check completed",
+                resolutionInstructions = emptyList(),
+                allowRetry = false,
+                merchantAlert = null
+            )
+        }
+    }
+
+    /**
+     * Create result for security-blocked enrollment
+     */
+    private fun createSecurityBlockedResult(
+        securityDecision: SecurityPolicy.SecurityDecision,
+        enrollmentId: String
+    ): EnrollmentResult.Failure {
+        val errorMessage = buildString {
+            append(securityDecision.userMessage)
+            if (securityDecision.resolutionInstructions.isNotEmpty()) {
+                append("\n\nResolution steps:")
+                securityDecision.resolutionInstructions.forEachIndexed { index, instruction ->
+                    append("\n${index + 1}. $instruction")
+                }
+            }
+        }
+
+        Log.e(TAG, "Enrollment security blocked: $enrollmentId - ${securityDecision.action}")
+        Log.e(TAG, "Threats detected: ${securityDecision.threats.joinToString(", ")}")
+
+        return EnrollmentResult.Failure(
+            error = EnrollmentError.SECURITY_VIOLATION,
+            message = errorMessage,
+            enrollmentId = enrollmentId,
+            timestamp = System.currentTimeMillis(),
+            securityDecision = securityDecision  // Pass full decision for UI handling
+        )
+    }
+
     private fun createFailureResult(
         error: EnrollmentError,
         message: String,

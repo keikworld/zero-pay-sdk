@@ -1,10 +1,12 @@
 package com.zeropay.sdk.security
 
 import android.annotation.SuppressLint
+import android.app.AppOpsManager
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Process
 import android.provider.Settings
 import java.io.BufferedReader
 import java.io.File
@@ -50,36 +52,40 @@ object AntiTampering {
         BUSYBOX_DETECTED,
         MAGISK_DETECTED,
         ROOT_MANAGEMENT_APP_DETECTED,
-        
+
         // Debugging
         DEBUGGER_ATTACHED,
         DEBUGGER_CONNECTED,
         TRACER_PID_DETECTED,
         DEBUG_PORT_OPEN,
-        
+        DEVELOPER_MODE_ENABLED,
+        ADB_ENABLED,
+        ADB_CONNECTED,
+        MOCK_LOCATION_ENABLED,
+
         // Emulator
         EMULATOR_DETECTED,
         EMULATOR_FILES_DETECTED,
         EMULATOR_PROPERTIES_DETECTED,
         GENERIC_BUILD_DETECTED,
-        
+
         // Hooking Frameworks
         XPOSED_DETECTED,
         EDXPOSED_DETECTED,
         LSPOSED_DETECTED,
         FRIDA_DETECTED,
         CYDIA_SUBSTRATE_DETECTED,
-        
+
         // Integrity
         APK_MODIFIED,
         APK_SIGNATURE_INVALID,
         DEX_TAMPERED,
-        
+
         // Network
         SSL_PINNING_BYPASSED,
         PROXY_DETECTED,
         VPN_DETECTED,
-        
+
         // Advanced
         MEMORY_TAMPERED,
         PROCESS_INJECTION_DETECTED,
@@ -206,7 +212,31 @@ object AntiTampering {
             threats.add(Threat.DEBUGGER_ATTACHED)
             details[Threat.DEBUGGER_ATTACHED] = "App is debuggable"
         }
-        
+
+        // Method 6: Developer mode
+        if (checkDeveloperMode(context)) {
+            threats.add(Threat.DEVELOPER_MODE_ENABLED)
+            details[Threat.DEVELOPER_MODE_ENABLED] = "Developer options enabled"
+        }
+
+        // Method 7: ADB enabled
+        if (isAdbEnabled(context)) {
+            threats.add(Threat.ADB_ENABLED)
+            details[Threat.ADB_ENABLED] = "USB debugging enabled"
+        }
+
+        // Method 8: ADB connected
+        if (isAdbConnected()) {
+            threats.add(Threat.ADB_CONNECTED)
+            details[Threat.ADB_CONNECTED] = "ADB actively connected"
+        }
+
+        // Method 9: Mock location
+        if (isMockLocationEnabled(context)) {
+            threats.add(Threat.MOCK_LOCATION_ENABLED)
+            details[Threat.MOCK_LOCATION_ENABLED] = "Mock location provider active"
+        }
+
         // ========== EMULATOR DETECTION (20+ methods) ==========
         
         // Method 1-5: Build properties
@@ -312,9 +342,21 @@ object AntiTampering {
             
             Threat.DEBUGGER_ATTACHED, Threat.DEBUGGER_CONNECTED, Threat.DEBUG_PORT_OPEN ->
                 "A debugger is attached. Please close all debugging tools and try again."
-            
+
             Threat.TRACER_PID_DETECTED ->
                 "Process tracing detected. This is not allowed for security reasons."
+
+            Threat.DEVELOPER_MODE_ENABLED ->
+                "Developer mode is enabled. Please disable Developer Options in Settings and try again."
+
+            Threat.ADB_ENABLED ->
+                "USB Debugging is enabled. Please disable USB Debugging in Developer Options and try again."
+
+            Threat.ADB_CONNECTED ->
+                "ADB connection detected. Please disconnect USB cable, disable USB Debugging, and try again."
+
+            Threat.MOCK_LOCATION_ENABLED ->
+                "Mock location is enabled. Please disable mock location apps and try again."
             
             Threat.EMULATOR_DETECTED, Threat.EMULATOR_FILES_DETECTED, Threat.EMULATOR_PROPERTIES_DETECTED, Threat.GENERIC_BUILD_DETECTED ->
                 "This appears to be an emulator. Please use a physical device for authentication."
@@ -515,7 +557,68 @@ object AntiTampering {
     private fun isDebuggable(context: Context): Boolean {
         return (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
     }
-    
+
+    // Method 6: Developer mode detection
+    private fun checkDeveloperMode(context: Context): Boolean {
+        return try {
+            Settings.Global.getInt(
+                context.contentResolver,
+                Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
+                0
+            ) == 1
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // Method 7: ADB enabled detection
+    private fun isAdbEnabled(context: Context): Boolean {
+        return try {
+            Settings.Global.getInt(
+                context.contentResolver,
+                Settings.Global.ADB_ENABLED,
+                0
+            ) == 1
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // Method 8: ADB connected detection
+    private fun isAdbConnected(): Boolean {
+        return try {
+            val process = Runtime.getRuntime().exec("getprop init.svc.adbd")
+            val reader = BufferedReader(InputStreamReader(process.inputStream))
+            val status = reader.readLine()
+            reader.close()
+            status == "running"
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // Method 9: Mock location detection
+    private fun isMockLocationEnabled(context: Context): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val opsManager = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+                opsManager.checkOp(
+                    AppOpsManager.OPSTR_MOCK_LOCATION,
+                    Process.myUid(),
+                    BuildConfig.APPLICATION_ID
+                ) == AppOpsManager.MODE_ALLOWED
+            } else {
+                @Suppress("DEPRECATION")
+                Settings.Secure.getString(
+                    context.contentResolver,
+                    Settings.Secure.ALLOW_MOCK_LOCATION
+                ) != "0"
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     // ========== EMULATOR DETECTION ==========
     
     private fun isEmulatorBasic(): Boolean {
@@ -833,16 +936,20 @@ object AntiTampering {
             Threat.FRIDA_DETECTED,
             Threat.DEBUGGER_ATTACHED,
             Threat.DEBUGGER_CONNECTED,
-            Threat.SSL_PINNING_BYPASSED
+            Threat.SSL_PINNING_BYPASSED,
+            Threat.ADB_CONNECTED  // Active ADB connection is high risk
         )
-        
+
         val mediumThreats = setOf(
             Threat.XPOSED_DETECTED,
             Threat.EDXPOSED_DETECTED,
             Threat.LSPOSED_DETECTED,
             Threat.SU_BINARY_DETECTED,
             Threat.SUPERUSER_APK_DETECTED,
-            Threat.TRACER_PID_DETECTED
+            Threat.TRACER_PID_DETECTED,
+            Threat.DEVELOPER_MODE_ENABLED,  // Developer mode enabled
+            Threat.ADB_ENABLED,              // USB debugging enabled
+            Threat.MOCK_LOCATION_ENABLED     // Mock location apps
         )
         
         return when {

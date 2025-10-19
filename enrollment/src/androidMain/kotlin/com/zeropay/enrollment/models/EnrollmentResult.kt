@@ -2,6 +2,8 @@
 
 package com.zeropay.enrollment.models
 
+import com.zeropay.sdk.security.SecurityPolicy
+
 /**
  * Result of enrollment operation - ENHANCED VERSION
  */
@@ -14,13 +16,14 @@ sealed class EnrollmentResult {
         val linkedProviders: List<String> = emptyList(),
         val timestamp: Long
     ) : EnrollmentResult()
-    
+
     data class Failure(
         val error: EnrollmentError,
         val message: String,
         val enrollmentId: String = "",
         val timestamp: Long = System.currentTimeMillis(),
-        val retryable: Boolean = false
+        val retryable: Boolean = false,
+        val securityDecision: SecurityPolicy.SecurityDecision? = null  // For security-related failures
     ) : EnrollmentResult()
 }
 
@@ -53,7 +56,8 @@ enum class EnrollmentError {
     CRYPTO_FAILURE,
     VALIDATION_FAILURE,
     RATE_LIMIT_EXCEEDED,
-    
+    SECURITY_VIOLATION,  // Device security check failed
+
     // General
     UNKNOWN
 }

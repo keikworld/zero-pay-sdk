@@ -2,7 +2,10 @@
 
 package com.zeropay.merchant.verification
 
+import android.content.Context
 import android.util.Log
+import com.zeropay.merchant.alerts.AlertPriority
+import com.zeropay.merchant.alerts.MerchantAlertService
 import com.zeropay.merchant.config.MerchantConfig
 import com.zeropay.merchant.fraud.FraudDetector
 import com.zeropay.merchant.fraud.RateLimiter
@@ -13,6 +16,8 @@ import com.zeropay.sdk.cache.RedisCacheClient
 import com.zeropay.sdk.crypto.CryptoUtils
 import com.zeropay.sdk.integration.BackendIntegration
 import com.zeropay.sdk.models.api.FactorDigest
+import com.zeropay.sdk.security.AntiTampering
+import com.zeropay.sdk.security.SecurityPolicy
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import java.time.Instant
@@ -63,7 +68,8 @@ class VerificationManager(
     private val digestComparator: DigestComparator,
     private val proofGenerator: ProofGenerator,
     private val fraudDetector: FraudDetector,
-    private val rateLimiter: RateLimiter
+    private val rateLimiter: RateLimiter,
+    private val merchantAlertService: MerchantAlertService? = null
 ) {
     
     companion object {
@@ -84,6 +90,7 @@ class VerificationManager(
      * @return Verification session or error
      */
     suspend fun createSession(
+        context: Context,
         userId: String,
         merchantId: String,
         transactionAmount: Double,
@@ -92,7 +99,53 @@ class VerificationManager(
     ): Result<VerificationSession> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Creating verification session for user: $userId")
-            
+
+            // ========== SECURITY CHECK ==========
+
+            val securityDecision = performSecurityCheck(context, userId, merchantId)
+
+            // Handle security decision
+            when (securityDecision.action) {
+                SecurityPolicy.SecurityAction.BLOCK_PERMANENT,
+                SecurityPolicy.SecurityAction.BLOCK_TEMPORARY -> {
+                    Log.w(TAG, "Security check blocked verification: ${securityDecision.action}")
+                    Log.w(TAG, "Threats: ${securityDecision.threats.joinToString(", ")}")
+
+                    // Alert merchant about security threat
+                    securityDecision.merchantAlert?.let { alert ->
+                        alertMerchant(merchantId, alert)
+                    }
+
+                    return@withContext Result.failure(
+                        SecurityException(securityDecision.userMessage).also {
+                            it.initCause(SecurityViolationException(securityDecision))
+                        }
+                    )
+                }
+
+                SecurityPolicy.SecurityAction.DEGRADE -> {
+                    Log.w(TAG, "Degraded mode active: ${securityDecision.userMessage}")
+
+                    // Alert merchant about degraded mode
+                    securityDecision.merchantAlert?.let { alert ->
+                        alertMerchant(merchantId, alert)
+                    }
+
+                    // Continue with verification but merchant is alerted
+                }
+
+                SecurityPolicy.SecurityAction.WARN -> {
+                    Log.w(TAG, "Security warning: ${securityDecision.userMessage}")
+                    // Continue normally
+                }
+
+                SecurityPolicy.SecurityAction.ALLOW -> {
+                    // All good, proceed
+                }
+            }
+
+            // ========== RATE LIMITING ==========
+
             // Check rate limiting
             if (!rateLimiter.allowVerificationAttempt(userId, deviceFingerprint, ipAddress)) {
                 return@withContext Result.failure(
@@ -509,4 +562,86 @@ class VerificationManager(
             null
         }
     }
+
+    // ==================== SECURITY ====================
+
+    /**
+     * Perform comprehensive security check before verification
+     */
+    private suspend fun performSecurityCheck(
+        context: Context,
+        userId: String?,
+        merchantId: String?
+    ): SecurityPolicy.SecurityDecision = withContext(Dispatchers.Default) {
+        try {
+            Log.d(TAG, "Performing security check for verification")
+            SecurityPolicy.evaluateThreats(context, userId)
+        } catch (e: Exception) {
+            Log.e(TAG, "Security check error: ${e.message}", e)
+            // On error, default to ALLOW to prevent blocking legitimate users
+            SecurityPolicy.SecurityDecision(
+                action = SecurityPolicy.SecurityAction.ALLOW,
+                threats = emptyList(),
+                severity = com.zeropay.sdk.security.AntiTampering.Severity.NONE,
+                userMessage = "Security check completed",
+                resolutionInstructions = emptyList(),
+                allowRetry = false,
+                merchantAlert = null
+            )
+        }
+    }
+
+    /**
+     * Alert merchant about security threat
+     *
+     * This sends a real-time alert to the merchant when security issues are detected.
+     * Merchant can then decide to cancel transaction, require additional verification, etc.
+     */
+    private suspend fun alertMerchant(
+        merchantId: String,
+        alert: SecurityPolicy.MerchantAlert
+    ) = withContext(Dispatchers.IO) {
+        try {
+            Log.w(TAG, "Alerting merchant $merchantId about ${alert.alertType}: ${alert.severity}")
+
+            // Determine alert priority based on severity and type
+            val priority = when {
+                alert.severity == AntiTampering.Severity.CRITICAL -> AlertPriority.CRITICAL
+                alert.alertType == SecurityPolicy.AlertType.FRAUD_ATTEMPT_SUSPECTED -> AlertPriority.CRITICAL
+                alert.alertType == SecurityPolicy.AlertType.PERMANENT_BLOCK_ISSUED -> AlertPriority.HIGH
+                alert.severity == AntiTampering.Severity.HIGH -> AlertPriority.HIGH
+                alert.alertType == SecurityPolicy.AlertType.DEGRADED_MODE_ACTIVE -> AlertPriority.NORMAL
+                else -> AlertPriority.LOW
+            }
+
+            // Send alert via MerchantAlertService if available
+            if (merchantAlertService != null) {
+                val result = merchantAlertService.sendAlert(merchantId, alert, priority)
+                if (result.success) {
+                    Log.i(TAG, "Merchant alert delivered successfully via ${result.deliveryMethod}")
+                } else {
+                    Log.w(TAG, "Merchant alert delivery failed: ${result.message}")
+                }
+            } else {
+                // Fallback: just log if service not configured
+                Log.w(TAG, "MerchantAlertService not configured. Alert would be sent:")
+                Log.w(TAG, "  Type: ${alert.alertType}")
+                Log.w(TAG, "  Severity: ${alert.severity}")
+                Log.w(TAG, "  Threats: ${alert.threats.joinToString(", ")}")
+                Log.w(TAG, "  User: ${alert.userId}")
+                Log.w(TAG, "  Requires Action: ${alert.requiresAction}")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to alert merchant: ${e.message}", e)
+            // Don't fail the verification if alert fails
+        }
+    }
+
+    /**
+     * Custom exception for security violations
+     */
+    class SecurityViolationException(
+        val securityDecision: SecurityPolicy.SecurityDecision
+    ) : Exception("Security violation: ${securityDecision.action}")
 }
