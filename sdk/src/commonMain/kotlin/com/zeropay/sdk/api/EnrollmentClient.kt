@@ -1,6 +1,6 @@
 package com.zeropay.sdk.api
 
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import com.zeropay.sdk.models.api.*
 import com.zeropay.sdk.network.NetworkException
 import com.zeropay.sdk.network.ZeroPayHttpClient

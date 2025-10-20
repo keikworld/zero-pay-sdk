@@ -29,7 +29,7 @@ class RedisCacheClientTest {
         val userUuid = "test-uuid-123"
         val digests = mapOf(
             Factor.PIN to ByteArray(32) { it.toByte() },
-            Factor.PATTERN to ByteArray(32) { (it * 2).toByte() }
+            Factor.PATTERN_NORMAL to ByteArray(32) { (it * 2).toByte() }
         )
         
         // Mock API response

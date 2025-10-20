@@ -6,7 +6,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
@@ -310,6 +313,9 @@ class SolanaClient(
             // Wait before next poll
             delay(pollIntervalMs)
         }
+
+        @Suppress("UNREACHABLE_CODE")
+        throw SolanaException("Unreachable code")
     }
     
     /**
@@ -385,10 +391,10 @@ class SolanaClient(
             "method" to method,
             "params" to params
         )
-        return json.encodeToString(kotlinx.serialization.json.JsonObject.serializer(), 
-            json.parseToJsonElement(json.encodeToString(kotlinx.serialization.serializers.MapSerializer(
-                kotlinx.serialization.builtins.serializer<String>(),
-                kotlinx.serialization.json.JsonElement.serializer()
+        return json.encodeToString(JsonObject.serializer(),
+            json.parseToJsonElement(json.encodeToString(MapSerializer(
+                String.serializer(),
+                JsonElement.serializer()
             ), request as Map<String, kotlinx.serialization.json.JsonElement>)) as JsonObject)
     }
     

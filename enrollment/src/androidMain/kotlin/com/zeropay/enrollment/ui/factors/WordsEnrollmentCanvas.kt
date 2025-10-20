@@ -21,7 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zeropay.sdk.CsprngShuffle
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import kotlinx.coroutines.launch
 
 /**

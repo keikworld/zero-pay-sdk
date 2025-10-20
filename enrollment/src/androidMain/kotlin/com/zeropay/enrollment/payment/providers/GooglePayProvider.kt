@@ -5,7 +5,7 @@ import android.content.Intent
 import androidx.activity.result.ActivityResultLauncher
 import com.zeropay.enrollment.config.EnrollmentConfig
 import com.zeropay.enrollment.payment.PaymentProviderInterface
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext

@@ -1,6 +1,6 @@
 package com.zeropay.sdk.factors
 
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -331,12 +331,99 @@ class ImageTapFactorTest {
     }
     
     // ==================== GETTERS ====================
-    
+
     @Test
     fun testGetters_ReturnCorrectValues() {
         // Act & Assert
         assertEquals(20, ImageTapFactor.getGridSize())
         assertEquals(2, ImageTapFactor.getTapTolerance())
         assertEquals(2, ImageTapFactor.getRequiredTaps())
+    }
+
+    // ==================== APPROVED IMAGES (GDPR) ====================
+
+    @Test
+    fun testGetApprovedImages_ReturnsNonEmptyList() {
+        // Act
+        val images = ImageTapFactor.getApprovedImages()
+
+        // Assert
+        assertTrue("Should have at least one approved image", images.isNotEmpty())
+    }
+
+    @Test
+    fun testGetApprovedImages_AllHaveValidHashes() {
+        // Act
+        val images = ImageTapFactor.getApprovedImages()
+
+        // Assert
+        images.forEach { imageInfo ->
+            assertNotNull("Image ID should not be null", imageInfo.imageId)
+            assertTrue("Image ID should not be empty", imageInfo.imageId.isNotEmpty())
+            assertEquals("Image hash should be 32 bytes (SHA-256)", 32, imageInfo.imageHash.size)
+            assertFalse("Image hash should not be all zeros", imageInfo.imageHash.all { it == 0.toByte() })
+        }
+    }
+
+    @Test
+    fun testGetApprovedImages_AllHaveUniqueIds() {
+        // Act
+        val images = ImageTapFactor.getApprovedImages()
+
+        // Assert
+        val uniqueIds = images.map { it.imageId }.toSet()
+        assertEquals(
+            "All image IDs should be unique",
+            images.size,
+            uniqueIds.size
+        )
+    }
+
+    @Test
+    fun testGetApprovedImages_AllHaveUniqueHashes() {
+        // Act
+        val images = ImageTapFactor.getApprovedImages()
+
+        // Assert
+        val uniqueHashes = images.map { it.imageHash.contentToString() }.toSet()
+        assertEquals(
+            "All image hashes should be unique",
+            images.size,
+            uniqueHashes.size
+        )
+    }
+
+    @Test
+    fun testGetApprovedImages_ConsistentBetweenCalls() {
+        // Act
+        val images1 = ImageTapFactor.getApprovedImages()
+        val images2 = ImageTapFactor.getApprovedImages()
+
+        // Assert
+        assertEquals("Should return same number of images", images1.size, images2.size)
+
+        images1.zip(images2).forEach { (img1, img2) ->
+            assertEquals("Image IDs should match", img1.imageId, img2.imageId)
+            assertArrayEquals("Image hashes should match", img1.imageHash, img2.imageHash)
+        }
+    }
+
+    @Test
+    fun testApprovedImages_NoPersonalDataInIds() {
+        // Act
+        val images = ImageTapFactor.getApprovedImages()
+
+        // Assert - GDPR compliance check
+        val forbiddenTerms = listOf("user", "photo", "face", "person", "biometric", "selfie")
+
+        images.forEach { imageInfo ->
+            val lowercaseId = imageInfo.imageId.toLowerCase()
+            forbiddenTerms.forEach { term ->
+                assertFalse(
+                    "Image ID should not contain personal data terms like '$term' (GDPR)",
+                    lowercaseId.contains(term)
+                )
+            }
+        }
     }
 }

@@ -1,6 +1,6 @@
 package com.zeropay.sdk
 
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import com.zeropay.sdk.factors.*
 import org.junit.Assert.*
 import org.junit.Before
@@ -498,7 +498,7 @@ class ZeroPaySDKTest {
     @Test
     fun testCryptoUtils_SecureRandomBytes_CorrectSize() {
         // Arrange & Act
-        val bytes = CryptoUtils.secureRandomBytes(32)
+        val bytes = CryptoUtils.generateRandomBytes(32)
         
         // Assert
         assertEquals(32, bytes.size)
@@ -507,8 +507,8 @@ class ZeroPaySDKTest {
     @Test
     fun testCryptoUtils_SecureRandomBytes_RandomnessQuality() {
         // Arrange & Act
-        val bytes1 = CryptoUtils.secureRandomBytes(32)
-        val bytes2 = CryptoUtils.secureRandomBytes(32)
+        val bytes1 = CryptoUtils.generateRandomBytes(32)
+        val bytes2 = CryptoUtils.generateRandomBytes(32)
         
         // Assert
         assertFalse(

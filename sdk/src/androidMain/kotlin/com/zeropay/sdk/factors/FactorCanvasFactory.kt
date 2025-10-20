@@ -67,7 +67,7 @@ object FactorCanvasFactory {
         // Validate factor availability
         if (!FactorRegistry.isAvailable(context, factor)) {
             throw FactorNotAvailableException(
-                factor = factor,
+                factor = factor.name,
                 reason = "Factor not available on this device"
             )
         }
@@ -184,15 +184,15 @@ object FactorCanvasFactory {
             Factor.FINGERPRINT -> {
                 // Note: Fingerprint uses platform BiometricPrompt, not a Canvas
                 throw FactorNotAvailableException(
-                    factor = factor,
+                    factor = factor.name,
                     reason = "Fingerprint uses BiometricPrompt, not Canvas UI"
                 )
             }
-            
+
             Factor.FACE -> {
                 // Note: Face uses platform BiometricPrompt, not a Canvas
                 throw FactorNotAvailableException(
-                    factor = factor,
+                    factor = factor.name,
                     reason = "Face uses BiometricPrompt, not Canvas UI"
                 )
             }
@@ -227,11 +227,11 @@ object FactorCanvasFactory {
     ): ValidationResult {
         // Check if factor requires hardware
         if (factor.requiresHardware) {
-            val available = FactorRegistry.checkAvailability(context, factor)
-            if (!available.isAvailable) {
+            val available = FactorRegistry.isAvailable(context, factor)
+            if (!available) {
                 return ValidationResult(
                     isValid = false,
-                    errorMessage = available.reason ?: "Hardware not available"
+                    errorMessage = "Hardware not available for ${factor.displayName}"
                 )
             }
         }

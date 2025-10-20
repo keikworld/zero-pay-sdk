@@ -5,7 +5,7 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
@@ -226,7 +226,7 @@ class GoogleBiometricProvider(
             userUuid,
             getDeviceId(),
             System.currentTimeMillis().toString(),
-            CryptoUtils.secureRandomBytes(16).joinToString("") { "%02x".format(it) }
+            CryptoUtils.generateRandomBytes(16).joinToString("") { "%02x".format(it) }
         ).joinToString("|")
         
         // Hash with SHA-256 (irreversible)

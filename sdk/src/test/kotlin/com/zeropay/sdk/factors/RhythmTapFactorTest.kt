@@ -21,11 +21,11 @@ class RhythmTapFactorTest {
     @Test
     fun testDigest_ValidTaps_ReturnsCorrectSize() {
         // Arrange - 4 taps
-        val taps = listOf(1000L, 1500L, 2000L, 2500L)
-        
+        val taps = listOf(1000L, 1500L, 2000L, 2500L).map { RhythmTapFactor.RhythmTap(it) }
+
         // Act
         val digest = RhythmTapFactor.digest(taps)
-        
+
         // Assert
         assertEquals("Digest should be 32 bytes (SHA-256)", 32, digest.size)
     }
@@ -33,7 +33,7 @@ class RhythmTapFactorTest {
     @Test
     fun testDigest_Deterministic_SameInputProducesSameDigest() {
         // Arrange
-        val taps = listOf(1000L, 1500L, 2000L, 2500L)
+        val taps = listOf(1000L, 1500L, 2000L, 2500L).map { RhythmTapFactor.RhythmTap(it) }
         
         // Act
         val digest1 = RhythmTapFactor.digest(taps)
@@ -46,8 +46,8 @@ class RhythmTapFactorTest {
     @Test
     fun testDigest_DifferentRhythms_ProduceDifferentDigests() {
         // Arrange
-        val rhythm1 = listOf(1000L, 1100L, 1200L, 1300L) // Fast taps
-        val rhythm2 = listOf(1000L, 1500L, 2000L, 2500L) // Slow taps
+        val rhythm1 = listOf(1000L, 1100L, 1200L, 1300L).map { RhythmTapFactor.RhythmTap(it) } // Fast taps
+        val rhythm2 = listOf(1000L, 1500L, 2000L, 2500L).map { RhythmTapFactor.RhythmTap(it) } // Slow taps
         
         // Act
         val digest1 = RhythmTapFactor.digest(rhythm1)
@@ -65,26 +65,31 @@ class RhythmTapFactorTest {
     @Test
     fun testVerify_MatchingRhythm_ReturnsTrue() {
         // Arrange
-        val taps = listOf(1000L, 1500L, 2000L, 2500L)
-        val digest = RhythmTapFactor.digest(taps)
-        
+        val tapTimestamps = listOf(1000L, 1500L, 2000L, 2500L)
+        val taps = tapTimestamps.map { RhythmTapFactor.RhythmTap(it) }
+        val nonce = 123456L
+        val digest = RhythmTapFactor.digest(taps, nonce)
+
         // Act
-        val result = RhythmTapFactor.verify(taps, digest)
-        
+        val result = RhythmTapFactor.verify(taps, digest, nonce)
+
         // Assert
         assertTrue("Matching rhythm should verify successfully", result)
     }
-    
+
     @Test
     fun testVerify_NonMatchingRhythm_ReturnsFalse() {
         // Arrange
-        val rhythm1 = listOf(1000L, 1500L, 2000L, 2500L)
-        val rhythm2 = listOf(1000L, 1200L, 1400L, 1600L)
-        val digest = RhythmTapFactor.digest(rhythm1)
-        
+        val rhythm1Timestamps = listOf(1000L, 1500L, 2000L, 2500L)
+        val rhythm2Timestamps = listOf(1000L, 1200L, 1400L, 1600L)
+        val taps1 = rhythm1Timestamps.map { RhythmTapFactor.RhythmTap(it) }
+        val taps2 = rhythm2Timestamps.map { RhythmTapFactor.RhythmTap(it) }
+        val nonce = 123456L
+        val digest = RhythmTapFactor.digest(taps1, nonce)
+
         // Act
-        val result = RhythmTapFactor.verify(rhythm2, digest)
-        
+        val result = RhythmTapFactor.verify(taps2, digest, nonce)
+
         // Assert
         assertFalse("Non-matching rhythm should fail verification", result)
     }
@@ -94,8 +99,8 @@ class RhythmTapFactorTest {
     @Test
     fun testDigest_Normalization_ProportionalRhythmsProduceSameDigest() {
         // Arrange - Same rhythm at different speeds (proportional intervals)
-        val rhythm1 = listOf(1000L, 1200L, 1400L, 1600L) // Intervals: 200, 200, 200
-        val rhythm2 = listOf(2000L, 2400L, 2800L, 3200L) // Intervals: 400, 400, 400 (2x)
+        val rhythm1 = listOf(1000L, 1200L, 1400L, 1600L).map { RhythmTapFactor.RhythmTap(it) } // Intervals: 200, 200, 200
+        val rhythm2 = listOf(2000L, 2400L, 2800L, 3200L).map { RhythmTapFactor.RhythmTap(it) } // Intervals: 400, 400, 400 (2x)
         
         // Act
         val digest1 = RhythmTapFactor.digest(rhythm1)
@@ -112,8 +117,8 @@ class RhythmTapFactorTest {
     @Test
     fun testDigest_Normalization_DifferentProportionsProduceDifferentDigests() {
         // Arrange - Different rhythm patterns
-        val rhythm1 = listOf(1000L, 1200L, 1400L, 1600L) // Intervals: 200, 200, 200 (even)
-        val rhythm2 = listOf(1000L, 1100L, 1300L, 1600L) // Intervals: 100, 200, 300 (uneven)
+        val rhythm1 = listOf(1000L, 1200L, 1400L, 1600L).map { RhythmTapFactor.RhythmTap(it) } // Intervals: 200, 200, 200 (even)
+        val rhythm2 = listOf(1000L, 1100L, 1300L, 1600L).map { RhythmTapFactor.RhythmTap(it) } // Intervals: 100, 200, 300 (uneven)
         
         // Act
         val digest1 = RhythmTapFactor.digest(rhythm1)
@@ -131,18 +136,18 @@ class RhythmTapFactorTest {
     @Test(expected = IllegalArgumentException::class)
     fun testDigest_EmptyTaps_ThrowsException() {
         // Arrange
-        val taps = emptyList<Long>()
-        
+        val taps = emptyList<RhythmTapFactor.RhythmTap>()
+
         // Act
         RhythmTapFactor.digest(taps)
-        
+
         // Assert - Should throw
     }
     
     @Test(expected = IllegalArgumentException::class)
     fun testDigest_TooFewTaps_ThrowsException() {
         // Arrange - Only 3 taps (minimum is 4)
-        val taps = listOf(1000L, 1500L, 2000L)
+        val taps = listOf(1000L, 1500L, 2000L).map { RhythmTapFactor.RhythmTap(it) }
         
         // Act
         RhythmTapFactor.digest(taps)
@@ -153,7 +158,7 @@ class RhythmTapFactorTest {
     @Test
     fun testDigest_MinimumTaps_WorksCorrectly() {
         // Arrange - Exactly 4 taps (minimum)
-        val taps = listOf(1000L, 1500L, 2000L, 2500L)
+        val taps = listOf(1000L, 1500L, 2000L, 2500L).map { RhythmTapFactor.RhythmTap(it) }
         
         // Act
         val digest = RhythmTapFactor.digest(taps)
@@ -165,7 +170,7 @@ class RhythmTapFactorTest {
     @Test
     fun testDigest_MaximumTaps_WorksCorrectly() {
         // Arrange - 6 taps (maximum)
-        val taps = listOf(1000L, 1500L, 2000L, 2500L, 3000L, 3500L)
+        val taps = listOf(1000L, 1500L, 2000L, 2500L, 3000L, 3500L).map { RhythmTapFactor.RhythmTap(it) }
         
         // Act
         val digest = RhythmTapFactor.digest(taps)
@@ -177,7 +182,7 @@ class RhythmTapFactorTest {
     @Test(expected = IllegalArgumentException::class)
     fun testDigest_TooManyTaps_ThrowsException() {
         // Arrange - 7 taps (exceeds maximum of 6)
-        val taps = listOf(1000L, 1500L, 2000L, 2500L, 3000L, 3500L, 4000L)
+        val taps = listOf(1000L, 1500L, 2000L, 2500L, 3000L, 3500L, 4000L).map { RhythmTapFactor.RhythmTap(it) }
         
         // Act
         RhythmTapFactor.digest(taps)
@@ -188,7 +193,7 @@ class RhythmTapFactorTest {
     @Test(expected = IllegalArgumentException::class)
     fun testDigest_NonMonotonic_ThrowsException() {
         // Arrange - Timestamps not in order
-        val taps = listOf(1000L, 2000L, 1500L, 2500L)
+        val taps = listOf(1000L, 2000L, 1500L, 2500L).map { RhythmTapFactor.RhythmTap(it) }
         
         // Act
         RhythmTapFactor.digest(taps)
@@ -199,7 +204,7 @@ class RhythmTapFactorTest {
     @Test(expected = IllegalArgumentException::class)
     fun testDigest_DuplicateTimestamps_ThrowsException() {
         // Arrange - Same timestamp twice
-        val taps = listOf(1000L, 1000L, 2000L, 3000L)
+        val taps = listOf(1000L, 1000L, 2000L, 3000L).map { RhythmTapFactor.RhythmTap(it) }
         
         // Act
         RhythmTapFactor.digest(taps)
@@ -210,7 +215,7 @@ class RhythmTapFactorTest {
     @Test(expected = IllegalArgumentException::class)
     fun testDigest_TapsTooFast_ThrowsException() {
         // Arrange - Taps too close together (<50ms)
-        val taps = listOf(1000L, 1020L, 1040L, 1060L) // 20ms intervals
+        val taps = listOf(1000L, 1020L, 1040L, 1060L).map { RhythmTapFactor.RhythmTap(it) } // 20ms intervals
         
         // Act
         RhythmTapFactor.digest(taps)
@@ -221,7 +226,7 @@ class RhythmTapFactorTest {
     @Test(expected = IllegalArgumentException::class)
     fun testDigest_TapsTooSlow_ThrowsException() {
         // Arrange - Total duration exceeds 10 seconds
-        val taps = listOf(0L, 5000L, 10000L, 15000L) // 15 seconds total
+        val taps = listOf(0L, 5000L, 10000L, 15000L).map { RhythmTapFactor.RhythmTap(it) } // 15 seconds total
         
         // Act
         RhythmTapFactor.digest(taps)
@@ -232,7 +237,7 @@ class RhythmTapFactorTest {
     @Test
     fun testDigest_FastButValid_WorksCorrectly() {
         // Arrange - 100ms intervals (valid, just above minimum)
-        val taps = listOf(1000L, 1100L, 1200L, 1300L)
+        val taps = listOf(1000L, 1100L, 1200L, 1300L).map { RhythmTapFactor.RhythmTap(it) }
         
         // Act
         val digest = RhythmTapFactor.digest(taps)
@@ -244,7 +249,7 @@ class RhythmTapFactorTest {
     @Test
     fun testDigest_SlowButValid_WorksCorrectly() {
         // Arrange - 2 second intervals (valid, just under max)
-        val taps = listOf(0L, 2000L, 4000L, 6000L) // 6 seconds total
+        val taps = listOf(0L, 2000L, 4000L, 6000L).map { RhythmTapFactor.RhythmTap(it) } // 6 seconds total
         
         // Act
         val digest = RhythmTapFactor.digest(taps)
@@ -258,7 +263,7 @@ class RhythmTapFactorTest {
     @Test
     fun testDigest_HighEntropy_NoPattern() {
         // Arrange
-        val taps = listOf(1000L, 1357L, 2468L, 3579L)
+        val taps = listOf(1000L, 1357L, 2468L, 3579L).map { RhythmTapFactor.RhythmTap(it) }
         
         // Act
         val digest = RhythmTapFactor.digest(taps)
@@ -279,8 +284,8 @@ class RhythmTapFactorTest {
     @Test
     fun testDigest_SmallTimingChange_LargeHashChange() {
         // Arrange - Only 1ms difference in one interval
-        val rhythm1 = listOf(1000L, 1500L, 2000L, 2500L)
-        val rhythm2 = listOf(1000L, 1501L, 2000L, 2500L) // 1ms difference
+        val rhythm1 = listOf(1000L, 1500L, 2000L, 2500L).map { RhythmTapFactor.RhythmTap(it) }
+        val rhythm2 = listOf(1000L, 1501L, 2000L, 2500L).map { RhythmTapFactor.RhythmTap(it) } // 1ms difference
         
         // Act
         val digest1 = RhythmTapFactor.digest(rhythm1)
@@ -306,7 +311,6 @@ class RhythmTapFactorTest {
         // Act & Assert
         assertEquals(4, RhythmTapFactor.getMinTaps())
         assertEquals(6, RhythmTapFactor.getMaxTaps())
-        assertEquals(50L, RhythmTapFactor.getMinIntervalMs())
-        assertEquals(10_000L, RhythmTapFactor.getMaxDurationMs())
+        // Note: MIN_INTERVAL_MS and MAX_DURATION_MS are private constants, not exposed via getters
     }
 }

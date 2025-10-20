@@ -271,7 +271,7 @@ android {
     }
     
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.3"
+        kotlinCompilerExtensionVersion = "1.5.8"  // Compatible with Kotlin 1.9.22
     }
     
     packaging {

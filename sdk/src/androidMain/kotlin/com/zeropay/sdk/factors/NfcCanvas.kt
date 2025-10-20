@@ -13,27 +13,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 
 /**
- * NFC Factor Implementation
- * 
+ * NFC Canvas - Composable UI for NFC factor capture
  * Reads NFC tag UID as authentication factor
- * Security: Tag UID is unique and hard to duplicate
  */
-object NfcFactor {
-    
-    fun digest(tagUid: ByteArray): ByteArray {
-        require(tagUid.isNotEmpty()) { "NFC tag UID cannot be empty" }
-        require(tagUid.size >= 4) { "NFC UID must be at least 4 bytes" }
-        
-        // Combine tag UID with timestamp for replay protection
-        val timestamp = System.currentTimeMillis().toString().toByteArray()
-        val combined = tagUid + timestamp
-        
-        return CryptoUtils.sha256(combined)
-    }
-}
 
 @Composable
 fun NfcCanvas(onDone: (ByteArray) -> Unit) {

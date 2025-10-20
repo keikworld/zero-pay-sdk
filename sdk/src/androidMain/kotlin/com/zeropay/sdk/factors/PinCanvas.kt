@@ -79,19 +79,22 @@ fun PinCanvas(onDone: (ByteArray) -> Unit) {
             )
         } else {
             // Step 2: Enter PIN
+            // Store targetLength in local variable for smart cast
+            val length = targetLength ?: return@Column
+
             Text(
-                "Enter $targetLength digits",
+                "Enter $length digits",
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 14.sp
             )
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             // PIN display (dots)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                repeat(targetLength) { index ->
+                repeat(length) { index ->
                     Box(
                         modifier = Modifier
                             .size(16.dp)
@@ -118,11 +121,11 @@ fun PinCanvas(onDone: (ByteArray) -> Unit) {
                             val number = row * 3 + col
                             PinButton(
                                 text = number.toString(),
-                                enabled = pin.length < targetLength && !isProcessing,
+                                enabled = pin.length < length && !isProcessing,
                                 onClick = {
                                     val now = System.currentTimeMillis()
                                     if (now - lastClickTime >= CLICK_THROTTLE_MS) {
-                                        if (pin.length < targetLength) {
+                                        if (pin.length < length) {
                                             pin += number
                                         }
                                         lastClickTime = now
@@ -142,11 +145,11 @@ fun PinCanvas(onDone: (ByteArray) -> Unit) {
                     
                     PinButton(
                         text = "0",
-                        enabled = pin.length < targetLength && !isProcessing,
+                        enabled = pin.length < length && !isProcessing,
                         onClick = {
                             val now = System.currentTimeMillis()
                             if (now - lastClickTime >= CLICK_THROTTLE_MS) {
-                                if (pin.length < targetLength) {
+                                if (pin.length < length) {
                                     pin += "0"
                                 }
                                 lastClickTime = now
@@ -244,9 +247,10 @@ fun PinCanvas(onDone: (ByteArray) -> Unit) {
     
     // Security: Auto-clear PIN after timeout
     LaunchedEffect(pin, targetLength) {
-        if (pin.isNotEmpty() && targetLength != null) {
+        val len = targetLength
+        if (pin.isNotEmpty() && len != null) {
             delay(AUTO_CLEAR_TIMEOUT_MS)
-            if (pin.length < targetLength) {
+            if (pin.length < len) {
                 pin = ""
             }
         }

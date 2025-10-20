@@ -2,7 +2,7 @@
 
 package com.zeropay.sdk.gateway.impl
 
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import com.zeropay.sdk.gateway.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

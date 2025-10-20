@@ -86,7 +86,8 @@ fun ImageTapCanvas(
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                ImageTapFactor.getApprovedImages().forEach { imageInfo ->
+                val approvedImages = ImageTapFactor.getApprovedImages()
+                approvedImages.forEach { imageInfo ->
                     Button(
                         onClick = {
                             selectedImage = imageInfo
@@ -95,7 +96,7 @@ fun ImageTapCanvas(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(imageInfo.imageId.replace("_", " ").capitalize())
+                        Text(imageInfo.imageId.replace("_", " ").replaceFirstChar { it.uppercase() })
                     }
                 }
             }

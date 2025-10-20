@@ -1,7 +1,7 @@
 package com.zeropay.sdk.factors
 
 import com.zeropay.sdk.crypto.ConstantTime
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 
 /**
  * Emoji Factor with Constant-Time Verification

@@ -1,7 +1,7 @@
 package com.zeropay.sdk.factors
 
 import com.zeropay.sdk.crypto.ConstantTime
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import java.util.Arrays
 
 /**
@@ -98,7 +98,7 @@ object NfcFactor {
             combined.addAll(CryptoUtils.longToBytes(timestamp).toList())
             
             // Add random nonce for additional entropy
-            val nonce = CryptoUtils.secureRandomBytes(NONCE_SIZE)
+            val nonce = CryptoUtils.generateRandomBytes(NONCE_SIZE)
             combined.addAll(nonce.toList())
             
             // Generate irreversible hash

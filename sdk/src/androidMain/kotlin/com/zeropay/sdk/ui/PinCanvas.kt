@@ -188,9 +188,9 @@ fun PinCanvas(
                 try {
                     // Generate Argon2id hash (Factor.digest handles security)
                     val derivedKey = PinFactor.digest(pin)
-                    
+
                     // Pass hash to callback
-                    onDone(derivedKey.hash)
+                    onDone(derivedKey)
                     
                     // Security: Clear PIN from memory
                     pin = ""

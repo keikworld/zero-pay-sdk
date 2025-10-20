@@ -13,7 +13,7 @@ import com.zeropay.merchant.models.*
 import com.zeropay.sdk.Factor
 import com.zeropay.sdk.api.VerificationClient
 import com.zeropay.sdk.cache.RedisCacheClient
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import com.zeropay.sdk.integration.BackendIntegration
 import com.zeropay.sdk.models.api.FactorDigest
 import com.zeropay.sdk.security.AntiTampering
@@ -296,6 +296,20 @@ class VerificationManager(
 
         try {
             Log.d(TAG, "Verifying session: ${session.sessionId}")
+
+            // ========== SESSION TIMEOUT CHECK ==========
+            // SECURITY: Prevent offline brute-force attacks by enforcing timeout
+            if (session.isExpired()) {
+                activeSessions.remove(session.sessionId)
+                Log.w(TAG, "Session expired: ${session.sessionId}")
+                return VerificationResult.Failure(
+                    sessionId = session.sessionId,
+                    error = MerchantConfig.VerificationError.TIMEOUT,
+                    message = "Session expired. Please start a new verification.",
+                    attemptNumber = session.attemptCount,
+                    canRetry = true
+                )
+            }
 
             // Try API verification first
             val apiResult = tryApiVerification(session)

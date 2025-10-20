@@ -2,14 +2,18 @@ package com.zeropay.sdk.ui
 
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import com.zeropay.sdk.factors.ColourFactor
+import com.zeropay.sdk.biometrics.GoogleBiometricProvider
 
+/**
+ * Face Canvas - Face biometric authentication UI
+ */
 @Composable
-fun ColourCanvas(onDone: (ByteArray) -> Unit, modifier: Modifier = Modifier) {
-    // TODO: Implement color selection UI
-    // For now, auto-submit
+fun FaceCanvas(onDone: (ByteArray) -> Unit, modifier: Modifier = Modifier) {
+    // TODO: Implement face biometric UI using GoogleBiometricProvider
+    // For now, auto-submit placeholder
     LaunchedEffect(Unit) {
-        val digest = ColourFactor.digest(listOf(0, 1, 2))
+        // In production, this would use BiometricPrompt with BIOMETRIC_STRONG
+        val digest = ByteArray(32) { 0 } // Placeholder
         onDone(digest)
     }
 }

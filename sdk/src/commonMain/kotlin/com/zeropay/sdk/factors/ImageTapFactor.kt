@@ -1,7 +1,7 @@
 package com.zeropay.sdk.factors
 
 import com.zeropay.sdk.crypto.ConstantTime
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import java.util.Arrays
 
 /**
@@ -100,8 +100,8 @@ object ImageTapFactor {
             bytes.addAll(imageInfo.imageHash.toList())
             
             // Add quantized tap points (sorted for consistency)
-            val sortedPoints = quantizedPoints.sorted()
-            sortedPoints.forEach { (gridX, gridY) ->
+            val sortedPoints = quantizedPoints.sortedWith(compareBy({ it.first }, { it.second }))
+            sortedPoints.forEach { (gridX: Int, gridY: Int) ->
                 bytes.add(gridX.toByte())
                 bytes.add(gridY.toByte())
             }
@@ -160,8 +160,8 @@ object ImageTapFactor {
             try {
                 candidateBytes.addAll(imageInfo.imageHash.toList())
                 
-                val sortedPoints = candidate.sorted()
-                sortedPoints.forEach { (gridX, gridY) ->
+                val sortedPoints = candidate.sortedWith(compareBy({ it.first }, { it.second }))
+                sortedPoints.forEach { (gridX: Int, gridY: Int) ->
                     candidateBytes.add(gridX.toByte())
                     candidateBytes.add(gridY.toByte())
                 }
@@ -237,8 +237,37 @@ object ImageTapFactor {
     }
     
     // ==================== GETTERS ====================
-    
+
     fun getGridSize(): Int = GRID_SIZE
     fun getTapTolerance(): Int = TAP_TOLERANCE
     fun getRequiredTaps(): Int = REQUIRED_TAPS
+
+    /**
+     * Get list of pre-approved abstract images (GDPR-compliant)
+     *
+     * IMPORTANT: Only abstract/geometric patterns allowed
+     * No personal photos or user uploads
+     *
+     * @return List of approved image info
+     */
+    fun getApprovedImages(): List<ImageInfo> {
+        return listOf(
+            ImageInfo(
+                imageId = "abstract_pattern",
+                imageHash = com.zeropay.sdk.security.CryptoUtils.sha256("abstract_pattern".toByteArray())
+            ),
+            ImageInfo(
+                imageId = "geometric_shapes",
+                imageHash = com.zeropay.sdk.security.CryptoUtils.sha256("geometric_shapes".toByteArray())
+            ),
+            ImageInfo(
+                imageId = "gradient_waves",
+                imageHash = com.zeropay.sdk.security.CryptoUtils.sha256("gradient_waves".toByteArray())
+            ),
+            ImageInfo(
+                imageId = "abstract_landscape",
+                imageHash = com.zeropay.sdk.security.CryptoUtils.sha256("abstract_landscape".toByteArray())
+            )
+        )
+    }
 }

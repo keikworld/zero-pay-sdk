@@ -1,7 +1,7 @@
 package com.zeropay.sdk.zksnark
 
 import com.zeropay.sdk.Factor
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import java.io.ByteArrayOutputStream
 
 /**
@@ -172,7 +172,7 @@ object PedersenCommitment {
      * Commit with auto-generated randomness
      */
     fun commit(value: ByteArray): CommitmentData {
-        val randomness = CryptoUtils.secureRandomBytes(32)
+        val randomness = CryptoUtils.generateRandomBytes(32)
         val commitment = commit(value, randomness)
         
         return CommitmentData(
@@ -513,5 +513,54 @@ object CircuitVerifier {
         
         // Placeholder: Simple validation
         return proof.size == 32 && proof.any { it != 0.toByte() }
+    }
+}
+
+// ==================== UTILITY EXTENSIONS ====================
+
+/**
+ * Write variable-length integer (VarInt encoding)
+ * Used for compact serialization
+ */
+private fun ByteArrayOutputStream.writeVarInt(value: Int) {
+    var v = value
+    while (v and 0x7F.inv() != 0) {
+        write((v and 0x7F) or 0x80)
+        v = v ushr 7
+    }
+    write(v and 0x7F)
+}
+
+/**
+ * Read variable-length integer (VarInt decoding)
+ */
+private fun java.io.InputStream.readVarInt(): Int {
+    var result = 0
+    var shift = 0
+    while (true) {
+        val byte = read()
+        if (byte == -1) throw java.io.EOFException("Unexpected end of stream")
+
+        result = result or ((byte and 0x7F) shl shift)
+
+        if ((byte and 0x80) == 0) {
+            return result
+        }
+
+        shift += 7
+        if (shift >= 32) {
+            throw IllegalArgumentException("VarInt too long")
+        }
+    }
+}
+
+/**
+ * Pad byte array to 32 bytes (circuit requirement)
+ */
+private fun ByteArray.padTo32Bytes(): ByteArray {
+    return when {
+        size == 32 -> this
+        size > 32 -> copyOf(32)  // Truncate if too long
+        else -> this + ByteArray(32 - size) // Pad with zeros
     }
 }

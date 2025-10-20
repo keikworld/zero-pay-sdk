@@ -323,7 +323,8 @@ fun RhythmTapCanvas(
                         
                         try {
                             // Generate digest (Factor handles security + normalization)
-                            val digest = RhythmTapFactor.digest(tapTimestamps)
+                            val taps = tapTimestamps.map { RhythmTapFactor.RhythmTap(it) }
+                            val digest = RhythmTapFactor.digest(taps)
                             onDone(digest)
                             
                             // Security: Clear tap data from memory

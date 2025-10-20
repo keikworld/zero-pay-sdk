@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 
 /**
  * Face Canvas - Biometric authentication using Android BiometricPrompt
@@ -287,7 +287,7 @@ private fun generateBiometricHash(deviceId: String, timestamp: Long): ByteArray 
     val components = listOf(
         deviceId,
         timestamp.toString(),
-        CryptoUtils.secureRandomBytes(16).joinToString("") { "%02x".format(it) }
+        CryptoUtils.generateRandomBytes(16).joinToString("") { "%02x".format(it) }
     ).joinToString("|")
     
     // Return SHA-256 hash (irreversible, GDPR-compliant)

@@ -113,8 +113,8 @@ class AndroidInstrumentedTests {
     @Test
     fun testCryptoUtils_SecureRandom_WorksOnDevice() {
         // Act
-        val random1 = com.zeropay.sdk.crypto.CryptoUtils.secureRandomBytes(32)
-        val random2 = com.zeropay.sdk.crypto.CryptoUtils.secureRandomBytes(32)
+        val random1 = com.zeropay.sdk.crypto.CryptoUtils.generateRandomBytes(32)
+        val random2 = com.zeropay.sdk.crypto.CryptoUtils.generateRandomBytes(32)
         
         // Assert
         assertEquals(32, random1.size)

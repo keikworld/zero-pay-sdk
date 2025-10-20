@@ -85,25 +85,28 @@ fun ColourCanvas(onSelected: (ByteArray) -> Unit) {
             )
         } else {
             // Step 2: Select colors
+            // Store targetCount in local variable for smart cast
+            val count = targetCount ?: return@Column
+
             Text(
-                "Tap $targetCount colors in order",
+                "Tap $count colors in order",
                 color = Color.White.copy(alpha = 0.8f),
                 fontSize = 16.sp
             )
-            
+
             Text(
-                "${selected.size} / $targetCount selected",
-                color = if (selected.size == targetCount) Color.Green else Color.White.copy(alpha = 0.7f),
+                "${selected.size} / $count selected",
+                color = if (selected.size == count) Color.Green else Color.White.copy(alpha = 0.7f),
                 fontSize = 14.sp
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             // Display colors
             colours.forEachIndexed { idx, colour ->
                 val isSelected = selected.contains(idx)
                 val selectionOrder = if (isSelected) selected.indexOf(idx) + 1 else null
-                
+
                 Box(
                     modifier = Modifier
                         .size(80.dp)
@@ -114,8 +117,8 @@ fun ColourCanvas(onSelected: (ByteArray) -> Unit) {
                             else
                                 Modifier
                         )
-                        .clickable(enabled = selected.size < targetCount) {
-                            if (!isSelected && selected.size < targetCount) {
+                        .clickable(enabled = selected.size < count) {
+                            if (!isSelected && selected.size < count) {
                                 selected = selected + idx
                             }
                         },

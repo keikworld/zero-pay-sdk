@@ -1,7 +1,7 @@
 package com.zeropay.sdk.factors
 
 import com.zeropay.sdk.crypto.ConstantTime
-import com.zeropay.sdk.crypto.KeyDerivation
+import com.zeropay.sdk.security.KeyDerivation
 import java.util.Arrays
 
 /**
@@ -16,46 +16,32 @@ import java.util.Arrays
 object PinFactor {
 
     /**
-     * Generate digest from PIN using Argon2id
-     * Returns DerivedKey for storage
+     * Generate digest from PIN using SHA-256
+     * Returns 32-byte digest for storage
      */
-    fun digest(pin: String): KeyDerivation.DerivedKey {
+    fun digest(pin: String): ByteArray {
         // Constant-time validation
         require(isValidPin(pin)) { "Invalid PIN format" }
-        
+
         val pinBytes = pin.toByteArray()
         return try {
-            KeyDerivation.deriveKey(pinBytes)
+            com.zeropay.sdk.security.CryptoUtils.sha256(pinBytes)
         } finally {
             Arrays.fill(pinBytes, 0)
         }
     }
-    
-    /**
-     * Generate digest with specific salt (for verification)
-     */
-    fun digestWithSalt(pin: String, salt: ByteArray): KeyDerivation.DerivedKey {
-        require(isValidPin(pin)) { "Invalid PIN format" }
-        
-        val pinBytes = pin.toByteArray()
-        return try {
-            KeyDerivation.deriveKey(pinBytes, salt)
-        } finally {
-            Arrays.fill(pinBytes, 0)
-        }
-    }
-    
+
     /**
      * Verify PIN against stored hash (constant-time)
      */
-    fun verify(pin: String, storedKey: KeyDerivation.DerivedKey): Boolean {
+    fun verify(pin: String, storedDigest: ByteArray): Boolean {
         if (!isValidPin(pin)) return false
-        
-        val pinBytes = pin.toByteArray()
+
+        val inputDigest = digest(pin)
         return try {
-            KeyDerivation.verify(pinBytes, storedKey)
+            com.zeropay.sdk.security.CryptoUtils.constantTimeEquals(inputDigest, storedDigest)
         } finally {
-            Arrays.fill(pinBytes, 0)
+            com.zeropay.sdk.security.CryptoUtils.wipeMemory(inputDigest)
         }
     }
     
@@ -88,6 +74,6 @@ object PinFactor {
     @Deprecated("Use digest() with Argon2id", ReplaceWith("digest(pin)"))
     fun legacyDigest(pin: String): ByteArray {
         require(isValidPin(pin)) { "Invalid PIN format" }
-        return com.zeropay.sdk.crypto.CryptoUtils.sha256(pin.toByteArray())
+        return com.zeropay.sdk.security.CryptoUtils.sha256(pin.toByteArray())
     }
 }

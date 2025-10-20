@@ -1,6 +1,6 @@
 package com.zeropay.enrollment.factors
 
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 
 /**
  * Pattern Factor - Handles pattern-based authentication

@@ -1,5 +1,6 @@
 package com.zeropay.sdk.crypto
 
+import com.zeropay.sdk.security.CryptoUtils
 import java.util.Arrays
 
 /**
@@ -48,16 +49,16 @@ object SecureMemory {
         if (data.isEmpty()) return
         
         // Pass 1: Random data
-        val random1 = CryptoUtils.secureRandomBytes(data.size)
+        val random1 = CryptoUtils.generateRandomBytes(data.size)
         random1.copyInto(data)
         
         // Pass 2: Complement
         for (i in data.indices) {
-            data[i] = data[i].inv()
+            data[i] = data[i].toInt().inv().toByte()
         }
         
         // Pass 3: Random data
-        val random2 = CryptoUtils.secureRandomBytes(data.size)
+        val random2 = CryptoUtils.generateRandomBytes(data.size)
         random2.copyInto(data)
         
         // Pass 4: Zeros
@@ -82,8 +83,8 @@ object SecureMemory {
 /**
  * Secure byte array that auto-wipes on close
  */
-class SecureByteArray(private val data: ByteArray) : AutoCloseable {
-    @Volatile private var cleared = false
+class SecureByteArray(internal val data: ByteArray) : AutoCloseable {
+    @Volatile internal var cleared = false
     
     /**
      * Get data (throws if already cleared)
@@ -96,7 +97,7 @@ class SecureByteArray(private val data: ByteArray) : AutoCloseable {
     /**
      * Use data safely
      */
-    inline fun <T> use(block: (ByteArray) -> T): T {
+    internal inline fun <T> use(block: (ByteArray) -> T): T {
         check(!cleared) { "SecureByteArray has been cleared" }
         return block(data)
     }

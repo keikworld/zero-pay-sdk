@@ -156,8 +156,49 @@ actual object CryptoUtils {
     actual fun bytesToHex(bytes: ByteArray): String {
         return bytesToHexCommon(bytes)
     }
-    
+
     actual fun hexToBytes(hex: String): ByteArray {
         return hexToBytesCommon(hex)
+    }
+
+    // ==================== ADDITIONAL UTILITIES ====================
+
+    actual fun hmacSha256(key: ByteArray, data: ByteArray): ByteArray {
+        require(key.isNotEmpty()) { "HMAC key cannot be empty" }
+        require(data.isNotEmpty()) { "HMAC data cannot be empty" }
+
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        val secretKey = javax.crypto.spec.SecretKeySpec(key, "HmacSHA256")
+        mac.init(secretKey)
+        val result = mac.doFinal(data)
+
+        require(result.size == SHA_256_DIGEST_SIZE) {
+            "HMAC-SHA256 digest size mismatch: expected $SHA_256_DIGEST_SIZE, got ${result.size}"
+        }
+
+        return result
+    }
+
+    actual fun floatToBytes(value: Float): ByteArray {
+        val bits = value.toBits()
+        return byteArrayOf(
+            ((bits shr 24) and 0xFF).toByte(),
+            ((bits shr 16) and 0xFF).toByte(),
+            ((bits shr 8) and 0xFF).toByte(),
+            (bits and 0xFF).toByte()
+        )
+    }
+
+    actual fun longToBytes(value: Long): ByteArray {
+        return byteArrayOf(
+            ((value shr 56) and 0xFF).toByte(),
+            ((value shr 48) and 0xFF).toByte(),
+            ((value shr 40) and 0xFF).toByte(),
+            ((value shr 32) and 0xFF).toByte(),
+            ((value shr 24) and 0xFF).toByte(),
+            ((value shr 16) and 0xFF).toByte(),
+            ((value shr 8) and 0xFF).toByte(),
+            (value and 0xFF).toByte()
+        )
     }
 }

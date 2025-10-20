@@ -17,46 +17,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import kotlinx.coroutines.delay
 
-
 /**
- * Balance Factor Implementation
- * 
- * Uses device accelerometer to detect balance/tilt patterns
- * Security: Biometric-like pattern unique to user's hand movement
+ * Balance Canvas - Composable UI for balance factor capture
+ * Uses accelerometer to detect tilt/balance patterns
  */
-object BalanceFactor {
-    
-    data class BalancePoint(
-        val x: Float,      // X-axis acceleration
-        val y: Float,      // Y-axis acceleration
-        val z: Float,      // Z-axis acceleration
-        val timestamp: Long
-    )
-    
-    fun digest(points: List<BalancePoint>): ByteArray {
-        require(points.isNotEmpty()) { "Balance points cannot be empty" }
-        require(points.size >= 10) { "Need at least 10 samples for balance pattern" }
-        
-        val bytes = mutableListOf<Byte>()
-        
-        // Quantize accelerometer values for consistent matching
-        points.forEach { point ->
-            // Quantize to 0.1g precision
-            val quantX = (point.x * 10).toInt().toByte()
-            val quantY = (point.y * 10).toInt().toByte()
-            val quantZ = (point.z * 10).toInt().toByte()
-            
-            bytes.add(quantX)
-            bytes.add(quantY)
-            bytes.add(quantZ)
-        }
-        
-        return CryptoUtils.sha256(bytes.toByteArray())
-    }
-}
 
 @Composable
 fun BalanceCanvas(onDone: (ByteArray) -> Unit) {

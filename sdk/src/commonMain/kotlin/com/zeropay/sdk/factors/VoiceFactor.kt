@@ -1,7 +1,7 @@
 package com.zeropay.sdk.factors
 
 import com.zeropay.sdk.crypto.ConstantTime
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import java.util.Arrays
 
 /**
@@ -40,7 +40,7 @@ object VoiceFactor {
         return try {
             // Add timestamp for replay protection
             val timestamp = System.currentTimeMillis().toString()
-            val salt = CryptoUtils.secureRandomBytes(16)
+            val salt = CryptoUtils.generateRandomBytes(16)
             
             // Combine audio + metadata
             val combined = audioBytes + timestamp.toByteArray() + salt

@@ -1,16 +1,88 @@
 -- Merging decision tree log ---
 manifest
-ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\main\AndroidManifest.xml:2:1-71
-INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\main\AndroidManifest.xml:2:1-71
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:10:1-83:12
+INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:10:1-83:12
 	package
-		INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\main\AndroidManifest.xml
+		INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml
+	xmlns:tools
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:11:5-51
 	xmlns:android
-		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\main\AndroidManifest.xml:2:11-69
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:10:11-69
+uses-permission#android.permission.INTERNET
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:16:5-67
+	android:name
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:16:22-64
+uses-permission#android.permission.ACCESS_NETWORK_STATE
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:19:5-79
+	android:name
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:19:22-76
+uses-permission#android.permission.NFC
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:22:5-62
+	android:name
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:22:22-59
+uses-permission#android.permission.RECORD_AUDIO
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:25:5-71
+	android:name
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:25:22-68
+uses-permission#android.permission.ACCESS_WIFI_STATE
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:28:5-76
+	android:name
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:28:22-73
+uses-feature#android.hardware.nfc
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:34:5-36:36
+	android:required
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:36:9-33
+	android:name
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:35:9-44
+uses-feature#android.hardware.camera
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:39:5-41:36
+	android:required
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:41:9-33
+	android:name
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:40:9-47
+uses-feature#android.hardware.biometrics
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:44:5-46:36
+	android:required
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:46:9-33
+	android:name
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:45:9-51
+uses-feature#android.hardware.fingerprint
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:48:5-50:36
+	android:required
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:50:9-33
+	android:name
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:49:9-52
+uses-feature#android.hardware.sensor.accelerometer
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:53:5-55:36
+	android:required
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:55:9-33
+	android:name
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:54:9-61
+uses-feature#android.hardware.microphone
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:58:5-60:36
+	android:required
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:60:9-33
+	android:name
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:59:9-51
+uses-feature#android.hardware.touchscreen
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:63:5-65:36
+	android:required
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:65:9-33
+	android:name
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:64:9-52
+application
+ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:68:5-81:19
+	tools:ignore
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:71:9-48
+	android:allowBackup
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:69:9-36
+	android:networkSecurityConfig
+		ADDED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml:70:9-69
 uses-sdk
-INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\main\AndroidManifest.xml reason: use-sdk injection requested
-INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\main\AndroidManifest.xml
-INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\main\AndroidManifest.xml
+INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml
+INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml
 	android:targetSdkVersion
-		INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\main\AndroidManifest.xml
+		INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml
 	android:minSdkVersion
-		INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\main\AndroidManifest.xml
+		INJECTED from C:\Users\USUARIO\StudioProjects\zero-pay-sdk\zeropay-android\sdk\src\androidMain\AndroidManifest.xml

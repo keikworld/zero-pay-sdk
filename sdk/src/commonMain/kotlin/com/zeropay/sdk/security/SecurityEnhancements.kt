@@ -1,6 +1,6 @@
 package com.zeropay.sdk.security
 
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import com.zeropay.sdk.Factor
 import java.io.ByteArrayOutputStream
 import kotlin.math.abs
@@ -113,7 +113,7 @@ object ProofOfWork {
      */
     fun generateChallenge(difficulty: Int = 20): ByteArray {
         require(difficulty in 1..30) { "Difficulty must be between 1 and 30" }
-        return CryptoUtils.secureRandomBytes(32)
+        return CryptoUtils.generateRandomBytes(32)
     }
     
     /**
@@ -368,7 +368,7 @@ class SecureByteArray(size: Int) : AutoCloseable {
         if (!cleared) {
             // Overwrite with random data multiple times (DoD 5220.22-M)
             repeat(3) {
-                val random = CryptoUtils.secureRandomBytes(data.size)
+                val random = CryptoUtils.generateRandomBytes(data.size)
                 random.copyInto(data)
             }
             // Final zero fill
@@ -418,8 +418,8 @@ object DigestValidator {
         val uniqueBytes = digest.distinct().size
         
         // Calculate byte frequency entropy
-        val frequencies = digest.groupingBy { it }.eachCount()
-        val entropy = frequencies.values.sumOf { count ->
+        val frequencies = digest.toList().groupingBy { it }.eachCount()
+        val entropy = frequencies.values.sumOf { count: Int ->
             val p = count.toDouble() / digest.size
             -p * kotlin.math.ln(p)
         }

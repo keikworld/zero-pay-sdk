@@ -8,7 +8,7 @@ import com.zeropay.enrollment.models.*
 import com.zeropay.enrollment.payment.PaymentProviderManager
 import com.zeropay.sdk.Factor
 import com.zeropay.sdk.cache.RedisCacheClient
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import com.zeropay.sdk.storage.KeyStoreManager
 import io.mockk.*
 import kotlinx.coroutines.runBlocking

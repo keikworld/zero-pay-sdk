@@ -29,6 +29,8 @@ enum class Factor(
     val icon: String,
     val securityLevel: SecurityLevel,
     val convenienceLevel: ConvenienceLevel,
+    val minLength: Int,
+    val maxLength: Int,
     val requiresHardware: Boolean = false,
     val requiresPermission: String? = null
 ) {
@@ -48,6 +50,8 @@ enum class Factor(
         icon = "🔢",
         securityLevel = SecurityLevel.MEDIUM,
         convenienceLevel = ConvenienceLevel.HIGH,
+        minLength = 4,
+        maxLength = 12,
         requiresHardware = false
     ),
     
@@ -64,6 +68,8 @@ enum class Factor(
         icon = "🎨",
         securityLevel = SecurityLevel.LOW_MEDIUM,
         convenienceLevel = ConvenienceLevel.HIGH,
+        minLength = 3,
+        maxLength = 6,
         requiresHardware = false
     ),
     
@@ -80,6 +86,8 @@ enum class Factor(
         icon = "😀",
         securityLevel = SecurityLevel.MEDIUM,
         convenienceLevel = ConvenienceLevel.HIGH,
+        minLength = 3,
+        maxLength = 8,
         requiresHardware = false
     ),
     
@@ -96,6 +104,8 @@ enum class Factor(
         icon = "📝",
         securityLevel = SecurityLevel.HIGH,
         convenienceLevel = ConvenienceLevel.MEDIUM,
+        minLength = 3,
+        maxLength = 10,
         requiresHardware = false
     ),
     
@@ -121,6 +131,8 @@ enum class Factor(
         icon = "✏️",
         securityLevel = SecurityLevel.HIGH,
         convenienceLevel = ConvenienceLevel.MEDIUM,
+        minLength = 3,
+        maxLength = 9,
         requiresHardware = false
     ),
     
@@ -142,6 +154,8 @@ enum class Factor(
         icon = "✏️",
         securityLevel = SecurityLevel.MEDIUM_HIGH,
         convenienceLevel = ConvenienceLevel.HIGH,
+        minLength = 3,
+        maxLength = 9,
         requiresHardware = false
     ),
     
@@ -163,6 +177,8 @@ enum class Factor(
         icon = "🖱️",
         securityLevel = SecurityLevel.MEDIUM_HIGH,
         convenienceLevel = ConvenienceLevel.LOW,
+        minLength = 3,
+        maxLength = 20,
         requiresHardware = true // Mouse/trackpad
     ),
     
@@ -185,6 +201,8 @@ enum class Factor(
         icon = "🖊️",
         securityLevel = SecurityLevel.VERY_HIGH,
         convenienceLevel = ConvenienceLevel.MEDIUM,
+        minLength = 3,
+        maxLength = 20,
         requiresHardware = true, // Stylus support
         requiresPermission = null
     ),
@@ -205,6 +223,8 @@ enum class Factor(
         icon = "🎤",
         securityLevel = SecurityLevel.VERY_HIGH,
         convenienceLevel = ConvenienceLevel.MEDIUM,
+        minLength = 3,
+        maxLength = 10,
         requiresHardware = true, // Microphone
         requiresPermission = "android.permission.RECORD_AUDIO"
     ),
@@ -225,6 +245,8 @@ enum class Factor(
         icon = "🖼️",
         securityLevel = SecurityLevel.MEDIUM_HIGH,
         convenienceLevel = ConvenienceLevel.HIGH,
+        minLength = 4,
+        maxLength = 16,
         requiresHardware = false
     ),
     
@@ -246,6 +268,8 @@ enum class Factor(
         icon = "⚖️",
         securityLevel = SecurityLevel.MEDIUM,
         convenienceLevel = ConvenienceLevel.MEDIUM,
+        minLength = 10,
+        maxLength = 100,
         requiresHardware = true // Accelerometer
     ),
 
@@ -285,6 +309,8 @@ enum class Factor(
         icon = "🎵",
         securityLevel = SecurityLevel.MEDIUM_HIGH,
         convenienceLevel = ConvenienceLevel.VERY_HIGH,
+        minLength = 3,
+        maxLength = 12,
         requiresHardware = false, // Works on any touchscreen
         requiresPermission = null
     ),
@@ -308,6 +334,8 @@ enum class Factor(
         icon = "📱",
         securityLevel = SecurityLevel.HIGH,
         convenienceLevel = ConvenienceLevel.HIGH,
+        minLength = 4,
+        maxLength = 32,
         requiresHardware = true, // NFC chip
         requiresPermission = "android.permission.NFC"
     ),
@@ -332,6 +360,8 @@ enum class Factor(
         icon = "👆",
         securityLevel = SecurityLevel.VERY_HIGH,
         convenienceLevel = ConvenienceLevel.VERY_HIGH,
+        minLength = 1,
+        maxLength = 1,
         requiresHardware = true, // Fingerprint sensor
         requiresPermission = "android.permission.USE_BIOMETRIC"
     ),
@@ -353,6 +383,8 @@ enum class Factor(
         icon = "👤",
         securityLevel = SecurityLevel.VERY_HIGH,
         convenienceLevel = ConvenienceLevel.VERY_HIGH,
+        minLength = 1,
+        maxLength = 1,
         requiresHardware = true, // Face unlock hardware
         requiresPermission = "android.permission.USE_BIOMETRIC"
     );
@@ -458,13 +490,13 @@ enum class Factor(
     fun isCompatibleWith(other: Factor): Boolean {
         // Same factor = not compatible
         if (this == other) return false
-        
+
         // For PSD3 compliance, should be from different categories
         // But we allow same category if they're sufficiently different
         return when {
             // Different categories = always compatible
             this.category != other.category -> true
-            
+
             // Same category behavioral factors = check if different types
             this.isBehavioral() && other.isBehavioral() -> {
                 // Pattern + Voice = OK
@@ -474,19 +506,168 @@ enum class Factor(
                 !(this == PATTERN_MICRO && other == PATTERN_NORMAL ||
                   this == PATTERN_NORMAL && other == PATTERN_MICRO)
             }
-            
+
             // Same category knowledge factors = OK if different types
             this.isKnowledge() && other.isKnowledge() -> {
                 // PIN + WORDS = OK (very different)
                 // COLOUR + EMOJI = OK (different)
                 true
             }
-            
+
             // Different biometrics = OK
             this.isBiometric() && other.isBiometric() -> true
-            
+
             else -> true
         }
+    }
+
+    /**
+     * Check if value length is within acceptable range
+     */
+    fun isValidLength(value: String): Boolean {
+        return value.length in minLength..maxLength
+    }
+
+    /**
+     * Get validation error message
+     */
+    fun getValidationMessage(): String {
+        return when {
+            minLength == maxLength -> "Must be exactly $minLength characters"
+            else -> "Must be between $minLength and $maxLength characters"
+        }
+    }
+
+    /**
+     * Validate value for this factor type
+     */
+    fun validate(value: String): FactorValidationResult {
+        // Check length
+        if (!isValidLength(value)) {
+            return FactorValidationResult(
+                isValid = false,
+                errorMessage = getValidationMessage(),
+                warnings = emptyList(),
+                strength = 0
+            )
+        }
+
+        // Type-specific validation
+        val warnings = mutableListOf<String>()
+
+        when (this) {
+            PIN -> {
+                if (!value.all { it.isDigit() }) {
+                    return FactorValidationResult(
+                        isValid = false,
+                        errorMessage = "PIN must contain only digits",
+                        warnings = emptyList(),
+                        strength = 0
+                    )
+                }
+                if (isWeakPin(value)) {
+                    warnings.add("PIN appears to be weak (common pattern)")
+                }
+            }
+            COLOUR -> {
+                val colors = value.split(",")
+                if (!colors.all { it.matches(Regex("#[0-9A-Fa-f]{6}")) }) {
+                    return FactorValidationResult(
+                        isValid = false,
+                        errorMessage = "Colors must be in #RRGGBB format separated by commas",
+                        warnings = emptyList(),
+                        strength = 0
+                    )
+                }
+            }
+            else -> { /* Other type-specific validation in processors */ }
+        }
+
+        val strength = calculateStrength(value)
+
+        return FactorValidationResult(
+            isValid = true,
+            errorMessage = null,
+            warnings = warnings,
+            strength = strength
+        )
+    }
+
+    /**
+     * Calculate security strength score (0-100)
+     */
+    private fun calculateStrength(value: String): Int {
+        var score = 50 // Base score
+
+        // Length bonus
+        val lengthRatio = value.length.toDouble() / maxLength
+        score += (lengthRatio * 20).toInt()
+
+        // Complexity bonus
+        val hasUpperCase = value.any { it.isUpperCase() }
+        val hasLowerCase = value.any { it.isLowerCase() }
+        val hasDigits = value.any { it.isDigit() }
+        val hasSpecial = value.any { !it.isLetterOrDigit() }
+
+        if (hasUpperCase) score += 5
+        if (hasLowerCase) score += 5
+        if (hasDigits) score += 5
+        if (hasSpecial) score += 10
+
+        // Security level bonus
+        score += securityLevel.score * 5
+
+        // Weak pattern penalty
+        if (isWeak(value)) score -= 30
+
+        return score.coerceIn(0, 100)
+    }
+
+    /**
+     * Check if this is a weak/common factor
+     */
+    fun isWeak(value: String): Boolean {
+        return when (this) {
+            PIN -> isWeakPin(value)
+            PATTERN_MICRO, PATTERN_NORMAL -> isWeakPattern(value)
+            VOICE, WORDS -> isWeakPhrase(value)
+            else -> false
+        }
+    }
+
+    private fun isWeakPin(pin: String): Boolean {
+        val weakPins = setOf(
+            "0000", "1111", "2222", "3333", "4444",
+            "5555", "6666", "7777", "8888", "9999",
+            "1234", "4321", "1212", "1122",
+            "000000", "111111", "222222", "333333", "444444",
+            "555555", "666666", "777777", "888888", "999999",
+            "123456", "654321", "123123", "112233"
+        )
+        return pin in weakPins
+    }
+
+    private fun isWeakPattern(pattern: String): Boolean {
+        if (pattern.length < 3) return true
+
+        // Check for sequential patterns
+        val isSequential = pattern.zipWithNext().all { (a, b) ->
+            b.code - a.code == 1
+        }
+
+        // Check for repeating patterns
+        val isRepeating = pattern.all { it == pattern[0] }
+
+        return isSequential || isRepeating
+    }
+
+    private fun isWeakPhrase(phrase: String): Boolean {
+        val weakPhrases = setOf(
+            "password", "123456", "qwerty", "letmein",
+            "welcome", "monkey", "dragon", "master",
+            "hello", "test", "admin", "user"
+        )
+        return phrase.lowercase() in weakPhrases
     }
     
     companion object {
@@ -551,4 +732,191 @@ enum class Factor(
                 .groupBy { it.requiresPermission!! }
         }
     }
+}
+
+/**
+ * FactorDigest - Hashed factor for storage/comparison
+ *
+ * @property factor Factor type
+ * @property digest SHA-256 digest (32 bytes)
+ * @property timestamp When digest was created
+ * @property metadata Additional metadata
+ */
+data class FactorDigest(
+    val factor: Factor,
+    val digest: ByteArray,
+    val timestamp: Long = System.currentTimeMillis(),
+    val metadata: Map<String, String> = emptyMap()
+) {
+    init {
+        require(digest.size == 32) { "Digest must be 32 bytes (SHA-256)" }
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as FactorDigest
+
+        if (factor != other.factor) return false
+        if (!digest.contentEquals(other.digest)) return false
+        if (timestamp != other.timestamp) return false
+        if (metadata != other.metadata) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = factor.hashCode()
+        result = 31 * result + digest.contentHashCode()
+        result = 31 * result + timestamp.hashCode()
+        result = 31 * result + metadata.hashCode()
+        return result
+    }
+}
+
+/**
+ * FactorValidationResult - Validation result
+ *
+ * @property isValid Whether factor is valid
+ * @property errorMessage Error message if invalid
+ * @property warnings Warning messages (non-blocking)
+ * @property strength Security strength score (0-100)
+ */
+data class FactorValidationResult(
+    val isValid: Boolean,
+    val errorMessage: String? = null,
+    val warnings: List<String> = emptyList(),
+    val strength: Int = 0
+) {
+    /**
+     * Check if factor has warnings
+     */
+    fun hasWarnings(): Boolean = warnings.isNotEmpty()
+
+    /**
+     * Check if factor is strong (strength >= 70)
+     */
+    fun isStrong(): Boolean = strength >= 70
+
+    /**
+     * Check if factor is weak (strength < 40)
+     */
+    fun isWeak(): Boolean = strength < 40
+}
+
+/**
+ * FactorSet - Collection of factors with validation
+ *
+ * Ensures PSD3 SCA compliance:
+ * - Minimum 2 factors (configurable)
+ * - From at least 2 different categories
+ *
+ * @property factors List of factors
+ * @property minFactors Minimum number of factors (default: 2)
+ */
+data class FactorSet(
+    val factors: List<Factor>,
+    val minFactors: Int = 2
+) {
+    init {
+        require(factors.size >= minFactors) {
+            "Minimum $minFactors factors required (PSD3 SCA)"
+        }
+
+        val categories = factors.map { it.category }.toSet()
+        require(categories.size >= 2) {
+            "Factors must be from at least 2 different categories (PSD3 SCA)"
+        }
+    }
+
+    /**
+     * Get factor by type
+     */
+    fun getByType(factor: Factor): Factor? {
+        return factors.find { it == factor }
+    }
+
+    /**
+     * Get factors by category
+     */
+    fun getByCategory(category: Factor.Category): List<Factor> {
+        return factors.filter { it.category == category }
+    }
+
+    /**
+     * Check if set contains weak factors (based on validation)
+     */
+    fun hasWeakFactors(values: Map<Factor, String>): Boolean {
+        return factors.any { factor ->
+            val value = values[factor] ?: return@any false
+            factor.isWeak(value)
+        }
+    }
+
+    /**
+     * Get overall strength score
+     */
+    fun getOverallStrength(values: Map<Factor, String>): Int {
+        if (factors.isEmpty()) return 0
+        val scores = factors.mapNotNull { factor ->
+            val value = values[factor] ?: return@mapNotNull null
+            factor.validate(value).strength
+        }
+        return if (scores.isEmpty()) 0 else scores.sum() / scores.size
+    }
+
+    /**
+     * Get category distribution
+     */
+    fun getCategoryDistribution(): Map<Factor.Category, Int> {
+        return factors.groupBy { it.category }
+            .mapValues { it.value.size }
+    }
+
+    /**
+     * Validate all factors in the set
+     */
+    fun validateAll(values: Map<Factor, String>): Map<Factor, FactorValidationResult> {
+        return factors.associateWith { factor ->
+            val value = values[factor]
+            if (value == null) {
+                FactorValidationResult(
+                    isValid = false,
+                    errorMessage = "Value missing for factor ${factor.displayName}",
+                    warnings = emptyList(),
+                    strength = 0
+                )
+            } else {
+                factor.validate(value)
+            }
+        }
+    }
+}
+
+/**
+ * FactorInput - User input for factor processing
+ *
+ * Represents a factor value provided by the user during enrollment/verification.
+ *
+ * @property type The factor type (from Factor enum)
+ * @property value The raw value provided by the user
+ * @property metadata Optional metadata (e.g., device info, timestamp)
+ */
+data class FactorInput(
+    val type: Factor,
+    val value: String,
+    val metadata: Map<String, String> = emptyMap()
+)
+
+/**
+ * FactorException - Factor-related errors
+ */
+sealed class FactorException(message: String, cause: Throwable? = null) :
+    Exception(message, cause) {
+
+    class ValidationException(message: String) : FactorException(message)
+    class WeakFactorException(message: String) : FactorException(message)
+    class InsufficientFactorsException(message: String) : FactorException(message)
+    class InvalidCategoryDistributionException(message: String) : FactorException(message)
 }

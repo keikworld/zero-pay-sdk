@@ -1,6 +1,6 @@
 package com.zeropay.enrollment.security
 
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 
 /**
  * Alias Generator - Creates memorable aliases from UUIDs

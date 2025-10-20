@@ -1,7 +1,7 @@
 package com.zeropay.sdk.factors
 
 import com.zeropay.sdk.crypto.ConstantTime
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -61,7 +61,7 @@ object RhythmTapFactor {
      * Maximum input timeout (milliseconds)
      * Prevents indefinite waiting
      */
-    private const val INPUT_TIMEOUT_MS = 10_000L // 10 seconds
+    private const val INPUT_TIMEOUT_MS = 15_000L // 15 seconds
     
     /**
      * Normalization scale for intervals (milliseconds)
@@ -85,7 +85,7 @@ object RhythmTapFactor {
      * Minimum variance required in intervals
      * Prevents trivial rhythms like "tap-tap-tap-tap" (all equal)
      */
-    private const val MIN_VARIANCE_THRESHOLD = 0.1f
+    private const val MIN_VARIANCE_THRESHOLD = 0.05f
     
     // ==================== DATA CLASSES ====================
     
@@ -237,7 +237,7 @@ object RhythmTapFactor {
      * @return Random 64-bit nonce
      */
     private fun generateNonce(): Long {
-        val bytes = CryptoUtils.secureRandomBytes(8)
+        val bytes = CryptoUtils.generateRandomBytes(8)
         var result = 0L
         for (i in 0..7) {
             result = (result shl 8) or (bytes[i].toLong() and 0xFF)

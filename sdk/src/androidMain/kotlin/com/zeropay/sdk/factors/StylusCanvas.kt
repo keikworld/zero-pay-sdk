@@ -17,41 +17,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zeropay.sdk.crypto.CryptoUtils
-
+import com.zeropay.sdk.security.CryptoUtils
 
 /**
- * Stylus Draw Factor Implementation
- * 
+ * Stylus Canvas - Composable UI for stylus draw factor capture
  * Captures stylus drawing with pressure data
- * Security: Pressure patterns are unique biometric signatures
  */
-object StylusFactor {
-    
-    data class StylusPoint(
-        val x: Float,
-        val y: Float,
-        val pressure: Float,
-        val t: Long
-    )
-    
-    fun digestFull(points: List<StylusPoint>): ByteArray {
-        require(points.isNotEmpty()) { "Stylus points cannot be empty" }
-        require(points.size >= 5) { "Need at least 5 points for stylus pattern" }
-        
-        val bytes = mutableListOf<Byte>()
-        
-        // Include position, pressure, and timing
-        points.forEach { point ->
-            bytes.addAll(CryptoUtils.floatToBytes(point.x).toList())
-            bytes.addAll(CryptoUtils.floatToBytes(point.y).toList())
-            bytes.addAll(CryptoUtils.floatToBytes(point.pressure).toList())
-            bytes.addAll(CryptoUtils.longToBytes(point.t).toList())
-        }
-        
-        return CryptoUtils.sha256(bytes.toByteArray())
-    }
-}
 
 @Composable
 fun StylusCanvas(onDone: (ByteArray) -> Unit) {

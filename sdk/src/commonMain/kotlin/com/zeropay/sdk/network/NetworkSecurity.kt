@@ -1,5 +1,7 @@
 package com.zeropay.sdk.network
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.CertificatePinner
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -93,7 +95,7 @@ class RequestSigningInterceptor : okhttp3.Interceptor {
         
         // Generate request signature
         val timestamp = System.currentTimeMillis().toString()
-        val nonce = com.zeropay.sdk.crypto.CryptoUtils.secureRandomBytes(16)
+        val nonce = com.zeropay.sdk.security.CryptoUtils.generateRandomBytes(16)
             .joinToString("") { "%02x".format(it) }
         
         // Sign: HMAC-SHA256(method + url + body + timestamp + nonce)
@@ -113,7 +115,7 @@ class RequestSigningInterceptor : okhttp3.Interceptor {
         
         // TODO: Get API key from secure storage
         val apiKey = "YOUR_API_KEY_HERE".toByteArray()
-        val signature = com.zeropay.sdk.crypto.CryptoUtils.hmacSha256(apiKey, signatureData)
+        val signature = com.zeropay.sdk.security.CryptoUtils.hmacSha256(apiKey, signatureData)
         val signatureHex = signature.joinToString("") { "%02x".format(it) }
         
         val signedRequest = request.newBuilder()
@@ -147,7 +149,7 @@ object NonceManager {
      * Generate new nonce for request
      */
     fun generateNonce(): String {
-        val nonce = com.zeropay.sdk.crypto.CryptoUtils.secureRandomBytes(32)
+        val nonce = com.zeropay.sdk.security.CryptoUtils.generateRandomBytes(32)
             .joinToString("") { "%02x".format(it) }
         
         synchronized(lock) {
@@ -259,7 +261,9 @@ class SecureApiClient(
                 errorMessage = e.message
             )
         }
-        /**
+    }
+
+    /**
      * Generic POST request
      */
     suspend fun post(
@@ -413,7 +417,7 @@ object SessionSecurity {
         deviceId: String,
         durationMs: Long = 15 * 60 * 1000 // 15 minutes
     ): SecureSession {
-        val sessionId = com.zeropay.sdk.crypto.CryptoUtils.secureRandomBytes(32)
+        val sessionId = com.zeropay.sdk.security.CryptoUtils.generateRandomBytes(32)
             .joinToString("") { "%02x".format(it) }
         
         val nonce = NonceManager.generateNonce()

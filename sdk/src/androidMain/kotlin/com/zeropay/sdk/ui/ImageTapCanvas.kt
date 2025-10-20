@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import com.zeropay.sdk.factors.ImageTapFactor
 
 /**
@@ -140,7 +140,7 @@ fun ImageTapCanvas(
                             
                             // Store image size on first tap
                             if (imageSize == null) {
-                                imageSize = size.width to size.height
+                                imageSize = size.width.toFloat() to size.height.toFloat()
                             }
                             
                             // Validate tap distance from previous taps

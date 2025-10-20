@@ -1,7 +1,7 @@
 package com.zeropay.sdk
 
 import com.zeropay.sdk.crypto.ConstantTime
-import com.zeropay.sdk.crypto.KeyDerivation
+import com.zeropay.sdk.security.KeyDerivation
 import com.zeropay.sdk.factors.PinFactor
 import org.junit.Assert.*
 import org.junit.Test
@@ -50,9 +50,10 @@ class ThreadSafetyTest {
         val threads = (1..threadCount).map { i ->
             thread {
                 try {
-                    val pin = "test$i"
-                    val derived = KeyDerivation.deriveKey(pin.toByteArray())
-                    assertEquals(32, derived.hash.size)
+                    val uuid = "user_$i"
+                    val factors = listOf("pin_$i", "colour_$i")
+                    val derivedKey = KeyDerivation.deriveKey(uuid, factors)
+                    assertEquals(32, derivedKey.size)
                 } catch (e: Exception) {
                     errors.incrementAndGet()
                 } finally {

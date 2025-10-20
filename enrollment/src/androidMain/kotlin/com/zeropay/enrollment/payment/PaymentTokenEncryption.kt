@@ -1,7 +1,7 @@
 package com.zeropay.enrollment.payment
 
 import com.zeropay.sdk.Factor
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec

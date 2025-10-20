@@ -484,18 +484,18 @@ object PerformanceMonitor {
         val cpuTimeMs: Long?,
         val timestamp: Long
     )
-    
-    private val metrics = mutableListOf<PerformanceMetrics>()
-    private val lock = Any()
-    
+
+    internal val metrics = mutableListOf<PerformanceMetrics>()
+    internal val lock = Any()
+
     /**
      * Measure operation performance
-     * 
+     *
      * @param operationName Operation identifier
      * @param block Code block to measure
      * @return Result of block execution
      */
-    inline fun <T> measure(operationName: String, block: () -> T): T {
+    internal inline fun <T> measure(operationName: String, block: () -> T): T {
         val startTime = System.currentTimeMillis()
         val startMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
         

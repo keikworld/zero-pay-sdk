@@ -7,7 +7,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import com.zeropay.sdk.gateway.GatewayTokenStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

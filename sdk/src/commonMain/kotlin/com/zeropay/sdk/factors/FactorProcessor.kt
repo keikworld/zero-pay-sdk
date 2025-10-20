@@ -3,7 +3,12 @@
 
 package com.zeropay.sdk.factors
 
-import com.zeropay.sdk.models.*
+import com.zeropay.sdk.Factor
+import com.zeropay.sdk.FactorInput
+import com.zeropay.sdk.FactorDigest
+import com.zeropay.sdk.FactorSet
+import com.zeropay.sdk.FactorValidationResult
+import com.zeropay.sdk.FactorException
 import com.zeropay.sdk.security.CryptoUtils
 import com.zeropay.sdk.security.DoubleLayerEncryption
 import com.zeropay.sdk.factors.processors.*
@@ -44,18 +49,18 @@ class FactorProcessor(
     
     /**
      * Process single factor
-     * 
+     *
      * Steps:
      * 1. Validate factor
      * 2. Normalize value
      * 3. Hash with SHA-256
      * 4. Return digest
-     * 
-     * @param factor Factor to process
+     *
+     * @param factor Factor input to process
      * @return FactorDigest with hash
      * @throws FactorException if processing fails
      */
-    suspend fun processFactor(factor: Factor): FactorDigest = withContext(Dispatchers.Default) {
+    suspend fun processFactor(factor: FactorInput): FactorDigest = withContext(Dispatchers.Default) {
         try {
             // Step 1: Validate
             val validation = validateFactor(factor)
@@ -79,7 +84,7 @@ class FactorProcessor(
             
             // Step 4: Create digest object
             return@withContext FactorDigest(
-                type = factor.type,
+                factor = factor.type,
                 digest = digest,
                 timestamp = System.currentTimeMillis(),
                 metadata = factor.metadata
@@ -96,83 +101,37 @@ class FactorProcessor(
     
     /**
      * Process multiple factors
-     * 
-     * @param factors List of factors
+     *
+     * @param factors List of factor inputs
      * @return List of digests
      * @throws FactorException if any factor fails
      */
-    suspend fun processFactors(factors: List<Factor>): List<FactorDigest> {
-        // Validate factor set
+    suspend fun processFactors(factors: List<FactorInput>): List<FactorDigest> {
+        // Validate factor set (check types for PSD3 compliance)
+        val factorTypes = factors.map { it.type }
         val factorSet = try {
-            FactorSet(factors)
+            FactorSet(factorTypes)
         } catch (e: Exception) {
             throw FactorException.InsufficientFactorsException(
                 e.message ?: "Invalid factor set"
             )
         }
-        
+
         // Process each factor
         return factors.map { processFactor(it) }
     }
     
     /**
      * Validate factor
-     * 
+     *
      * Performs type-specific validation and strength checking.
-     * 
-     * @param factor Factor to validate
+     *
+     * @param factor Factor input to validate
      * @return Validation result
      */
-    fun validateFactor(factor: Factor): FactorValidationResult {
-        val warnings = mutableListOf<String>()
-        
-        // Check if weak
-        if (factor.isWeak()) {
-            warnings.add("This ${factor.type.displayName} is commonly used and may be weak")
-        }
-        
-        // Get strength
-        val strength = factor.getStrength()
-        
-        // Type-specific validation - NOW USES REAL PROCESSORS
-        val typeValidation = when (factor.type) {
-            FactorType.PIN -> PinProcessor.validate(factor.value)
-            FactorType.PATTERN -> PatternProcessor.validate(factor.value)
-            FactorType.EMOJI -> EmojiProcessor.validate(factor.value)
-            FactorType.COLOR -> ColorProcessor.validate(factor.value)
-            FactorType.WORDS -> WordsProcessor.validate(factor.value)
-            FactorType.MOUSE -> MouseProcessor.validate(factor.value)
-            FactorType.STYLUS -> StylusProcessor.validate(factor.value)
-            FactorType.VOICE -> VoiceProcessor.validate(factor.value)
-            FactorType.IMAGE_TAP -> ImageTapProcessor.validate(factor.value)
-            FactorType.FINGERPRINT -> ValidationResult(true) // Hardware-backed
-            FactorType.FACE -> ValidationResult(true) // Hardware-backed
-            else -> ValidationResult(false, "Unknown factor type: ${factor.type}")
-        }
-        
-        if (!typeValidation.isValid) {
-            return FactorValidationResult(
-                isValid = false,
-                errorMessage = typeValidation.errorMessage,
-                warnings = warnings,
-                strength = strength
-            )
-        }
-        
-        // Add type-specific warnings
-        warnings.addAll(typeValidation.warnings)
-        
-        // Check strength
-        if (strength < 40) {
-            warnings.add("Factor strength is low. Consider using a more complex value.")
-        }
-        
-        return FactorValidationResult(
-            isValid = true,
-            errorMessage = null,
-            warnings = warnings,
-            strength = strength
-        )
+    fun validateFactor(factor: FactorInput): FactorValidationResult {
+        // Use the Factor enum's validate method
+        return factor.type.validate(factor.value)
     }
     
     /**
@@ -183,34 +142,36 @@ class FactorProcessor(
      * @param factor Factor to normalize
      * @return Normalized value
      */
-    private fun normalizeFactor(factor: Factor): String {
+    private fun normalizeFactor(factor: FactorInput): String {
         return when (factor.type) {
-            FactorType.PIN -> PinProcessor.normalize(factor.value)
-            FactorType.PATTERN -> PatternProcessor.normalize(factor.value)
-            FactorType.EMOJI -> EmojiProcessor.normalize(factor.value)
-            FactorType.COLOR -> ColorProcessor.normalize(factor.value)
-            FactorType.WORDS -> WordsProcessor.normalize(factor.value)
-            FactorType.MOUSE -> MouseProcessor.normalize(factor.value)
-            FactorType.STYLUS -> StylusProcessor.normalize(factor.value)
-            FactorType.VOICE -> VoiceProcessor.normalize(factor.value)
-            FactorType.IMAGE_TAP -> ImageTapProcessor.normalize(factor.value)
-            FactorType.FINGERPRINT -> factor.value // Hardware-backed, no normalization
-            FactorType.FACE -> factor.value // Hardware-backed, no normalization
-            else -> factor.value.trim()
+            Factor.PIN -> PinProcessor.normalize(factor.value)
+            Factor.PATTERN_MICRO, Factor.PATTERN_NORMAL -> PatternProcessor.normalize(factor.value)
+            Factor.EMOJI -> EmojiProcessor.normalize(factor.value)
+            Factor.COLOUR -> ColorProcessor.normalize(factor.value)
+            Factor.WORDS -> WordsProcessor.normalize(factor.value)
+            Factor.MOUSE_DRAW -> MouseProcessor.normalize(factor.value)
+            Factor.STYLUS_DRAW -> StylusProcessor.normalize(factor.value)
+            Factor.VOICE -> VoiceProcessor.normalize(factor.value)
+            Factor.IMAGE_TAP -> ImageTapProcessor.normalize(factor.value)
+            Factor.FINGERPRINT -> factor.value // Hardware-backed, no normalization
+            Factor.FACE -> factor.value // Hardware-backed, no normalization
+            Factor.RHYTHM_TAP -> RhythmProcessor.normalize(factor.value)
+            Factor.NFC -> factor.value.trim()
+            Factor.BALANCE -> factor.value.trim()
         }
     }
     
     /**
      * Compare factor against stored digest
-     * 
+     *
      * Uses constant-time comparison to prevent timing attacks.
-     * 
+     *
      * @param factor Input factor
      * @param storedDigest Stored digest to compare against
      * @return true if match
      */
     suspend fun compareFactor(
-        factor: Factor,
+        factor: FactorInput,
         storedDigest: FactorDigest
     ): Boolean = withContext(Dispatchers.Default) {
         // Process input factor
@@ -231,10 +192,10 @@ class FactorProcessor(
 
 /**
  * ValidationResult - Type-specific validation result
- * 
- * Used internally by processors.
+ *
+ * Used by processors for validation.
  */
-internal data class ValidationResult(
+data class ValidationResult(
     val isValid: Boolean,
     val errorMessage: String? = null,
     val warnings: List<String> = emptyList()

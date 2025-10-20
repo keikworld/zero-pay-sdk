@@ -1,6 +1,6 @@
 package com.zeropay.sdk.factors
 
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 
 /**
  * Mouse Draw Factor - Logic Layer

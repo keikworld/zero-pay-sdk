@@ -315,12 +315,76 @@ expect object CryptoUtils {
     
     /**
      * Hex to Bytes - Convert hex string to byte array
-     * 
+     *
      * @param hex Hex string to convert
      * @return Byte array
      * @throws IllegalArgumentException if hex string invalid
      */
     fun hexToBytes(hex: String): ByteArray
+
+    // ==================== ADDITIONAL UTILITIES ====================
+
+    /**
+     * HMAC-SHA256 - Hash-based Message Authentication Code
+     *
+     * Used for:
+     * - Message authentication
+     * - API request signing
+     * - Secure token generation
+     *
+     * @param key HMAC key
+     * @param data Data to authenticate
+     * @return 32-byte HMAC-SHA256 digest
+     * @throws IllegalArgumentException if key or data is empty
+     *
+     * Example:
+     * ```kotlin
+     * val key = "secret-key".toByteArray()
+     * val message = "important-data".toByteArray()
+     * val hmac = CryptoUtils.hmacSha256(key, message)
+     * ```
+     */
+    fun hmacSha256(key: ByteArray, data: ByteArray): ByteArray
+
+    /**
+     * Float to Bytes - Convert float to byte array (big-endian)
+     *
+     * Used for:
+     * - Serializing accelerometer data (Balance factor)
+     * - Storing timing data (Rhythm factor)
+     * - Pressure data (Stylus factor)
+     *
+     * @param value Float value to convert
+     * @return 4-byte array (big-endian)
+     *
+     * Example:
+     * ```kotlin
+     * val pressure = 0.75f
+     * val bytes = CryptoUtils.floatToBytes(pressure)
+     * // bytes.size == 4
+     * ```
+     */
+    fun floatToBytes(value: Float): ByteArray
+
+    /**
+     * Long to Bytes - Convert long to byte array (big-endian)
+     *
+     * Used for:
+     * - Timestamp serialization
+     * - Nonce generation
+     * - Session ID encoding
+     *
+     * @param value Long value to convert
+     * @return 8-byte array (big-endian)
+     *
+     * Example:
+     * ```kotlin
+     * val timestamp = System.currentTimeMillis()
+     * val bytes = CryptoUtils.longToBytes(timestamp)
+     * // bytes.size == 8
+     * ```
+     */
+    fun longToBytes(value: Long): ByteArray
 }
 
 /**

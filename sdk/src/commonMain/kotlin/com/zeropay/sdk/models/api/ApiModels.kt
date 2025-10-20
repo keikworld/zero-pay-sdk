@@ -1,5 +1,6 @@
 package com.zeropay.sdk.models.api
 
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 
 /**
@@ -407,7 +408,7 @@ data class GdprExportRequest(
 @Serializable
 data class GdprExportResponse(
     val user_uuid: String,
-    val data: Map<String, Any>? = null,
+    val data: Map<String, @Contextual Any>? = null,
     val download_url: String? = null,
     val expires_at: String,
     val request_id: String

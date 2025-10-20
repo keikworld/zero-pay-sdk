@@ -5,7 +5,7 @@ package com.zeropay.enrollment.payment.providers
 import android.content.Context
 import com.zeropay.enrollment.config.EnrollmentConfig
 import com.zeropay.enrollment.payment.PaymentProviderInterface
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

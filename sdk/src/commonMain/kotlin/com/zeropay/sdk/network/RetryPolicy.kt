@@ -1,5 +1,6 @@
 package com.zeropay.sdk.network
 
+import com.zeropay.sdk.security.CryptoUtils
 import kotlinx.coroutines.delay
 import kotlin.math.pow
 import kotlin.math.min
@@ -66,17 +67,22 @@ object RetryPolicy {
                     )
                 }
                 
-                // Last attempt, don't delay
+                // Last attempt, don't delay - just return failure
                 if (attempt == config.maxRetries - 1) {
-                    break
+                    return RetryResult(
+                        success = false,
+                        data = null,
+                        attempts = attempt + 1,
+                        lastError = e
+                    )
                 }
-                
+
                 // Calculate delay with exponential backoff and jitter
                 val delay = calculateDelay(
                     attempt = attempt,
                     config = config
                 )
-                
+
                 delay(delay)
             }
         }
@@ -318,5 +324,5 @@ suspend fun authenticateBiometricWithRetry(
 private suspend fun authenticateBiometric(context: android.content.Context): ByteArray {
     // This would integrate with actual biometric authentication
     // For now, placeholder that throws on failure
-    return com.zeropay.sdk.crypto.CryptoUtils.secureRandomBytes(32)
+    return com.zeropay.sdk.security.CryptoUtils.generateRandomBytes(32)
 }

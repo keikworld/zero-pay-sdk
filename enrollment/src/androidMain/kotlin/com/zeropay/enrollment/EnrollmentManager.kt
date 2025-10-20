@@ -14,7 +14,7 @@ import com.zeropay.enrollment.security.UUIDManager
 import com.zeropay.sdk.Factor
 import com.zeropay.sdk.api.EnrollmentClient
 import com.zeropay.sdk.cache.RedisCacheClient
-import com.zeropay.sdk.crypto.CryptoUtils
+import com.zeropay.sdk.security.CryptoUtils
 import com.zeropay.sdk.integration.BackendIntegration
 import com.zeropay.sdk.models.api.FactorDigest
 import com.zeropay.sdk.security.SecurityPolicy
@@ -106,7 +106,7 @@ class EnrollmentManager(
         private const val RATE_LIMIT_WINDOW_MS = 3600_000L // 1 hour
     }
     
-    // Rate limiting tracking
+    // Rate limiting tracking (key format: "userId:deviceId")
     private val enrollmentAttempts = ConcurrentHashMap<String, MutableList<Long>>()
     
     // Active session tracking
@@ -183,13 +183,17 @@ class EnrollmentManager(
                 )
             }
 
+            // ========== GENERATE DEVICE FINGERPRINT ==========
+            // Used for rate limiting and API enrollment
+            val deviceId = generateDeviceId()
+
             // ========== STEP 3: RATE LIMITING ==========
-            
-            val rateLimitCheck = checkRateLimit(session.userId!!)
+
+            val rateLimitCheck = checkRateLimit(session.userId!!, deviceId)
             if (!rateLimitCheck) {
                 return@withContext createFailureResult(
                     error = EnrollmentError.RATE_LIMIT_EXCEEDED,
-                    message = "Too many enrollment attempts. Please try again later.",
+                    message = "Too many enrollment attempts from this device. Please try again later.",
                     enrollmentId = enrollmentId
                 )
             }
@@ -260,7 +264,6 @@ class EnrollmentManager(
             
             // ========== STEP 8: BACKEND API ENROLLMENT (PRIMARY) ==========
 
-            val deviceId = generateDeviceId()
             val apiEnrollmentResult = tryApiEnrollment(uuid, factorDigests, deviceId, session)
 
             if (apiEnrollmentResult) {
@@ -537,23 +540,33 @@ class EnrollmentManager(
     }
     
     /**
-     * Check rate limiting
+     * Check rate limiting with device fingerprinting
+     *
+     * SECURITY: Combines userId + deviceId to prevent bypass via multiple devices
+     *
+     * @param userId User identifier
+     * @param deviceId Device fingerprint
+     * @return true if rate limit not exceeded, false otherwise
      */
-    private fun checkRateLimit(userId: String): Boolean {
+    private fun checkRateLimit(userId: String, deviceId: String): Boolean {
         val now = System.currentTimeMillis()
-        val attempts = enrollmentAttempts.getOrPut(userId) { mutableListOf() }
-        
-        // Clean old attempts
+
+        // Create compound key: userId + deviceId
+        val rateLimitKey = "$userId:$deviceId"
+        val attempts = enrollmentAttempts.getOrPut(rateLimitKey) { mutableListOf() }
+
+        // Clean old attempts (outside rate limit window)
         attempts.removeIf { it < now - RATE_LIMIT_WINDOW_MS }
-        
+
         // Check limit
         if (attempts.size >= MAX_ENROLLMENTS_PER_HOUR) {
-            Log.w(TAG, "Rate limit exceeded for user: $userId")
+            Log.w(TAG, "Rate limit exceeded for user: $userId on device: ${deviceId.take(8)}...")
             return false
         }
-        
+
         // Record attempt
         attempts.add(now)
+        Log.d(TAG, "Rate limit check passed: $userId on device ${deviceId.take(8)}... (${attempts.size}/$MAX_ENROLLMENTS_PER_HOUR)")
         return true
     }
     

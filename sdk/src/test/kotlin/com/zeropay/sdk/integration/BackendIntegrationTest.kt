@@ -2,6 +2,7 @@ package com.zeropay.sdk.integration
 
 import com.zeropay.sdk.config.FallbackStrategy
 import com.zeropay.sdk.config.IntegrationConfig
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -582,7 +583,7 @@ class BackendIntegrationTest {
         val integration = BackendIntegration(config)
 
         val jobs = List(10) {
-            kotlinx.coroutines.async {
+            async {
                 integration.execute(
                     primary = { "success-$it" },
                     fallback = null

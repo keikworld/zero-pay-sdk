@@ -256,15 +256,13 @@ class BackendIntegration(
                     metrics.recordCacheFailure()
                 }
 
-                // Check if retryable
+                // Check if retryable and not last attempt
                 if (attempt < maxAttempts - 1 && isRetryable(e)) {
                     val delay = calculateRetryDelay(attempt)
                     log("$operationName failed (attempt ${attempt + 1}/$maxAttempts), retrying in ${delay}ms: ${e.message}")
                     delay(delay)
-                } else {
-                    // Not retryable or max attempts reached
-                    break
                 }
+                // If not retryable or max attempts reached, loop will exit naturally
             }
         }
 
