@@ -1,0 +1,2299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZeroPay Demo v3.0 - Complete Flow</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #1A1A2E 0%, #16213E 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo {
+            font-size: 36px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #4CAF50 0%, #2196F3 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid rgba(76, 175, 80, 0.3);
+            background: transparent;
+            color: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .mode-btn.active {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+
+        .mode-btn:hover:not(.active) {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            padding: 0 16px;
+        }
+
+        .step {
+            text-align: center;
+            position: relative;
+            flex: 1;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 8px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .step.active .step-number {
+            background: #4CAF50;
+            border-color: #4CAF50;
+            transform: scale(1.1);
+        }
+
+        .step.completed .step-number {
+            background: rgba(76, 175, 80, 0.3);
+            border-color: #4CAF50;
+        }
+
+        .step-label {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .step.active .step-label {
+            color: #4CAF50;
+            font-weight: 600;
+        }
+
+        .step-line {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: -1;
+        }
+
+        .step:last-child .step-line {
+            display: none;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #4CAF50;
+        }
+
+        .factor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .factor-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .factor-card:hover {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .factor-card.selected {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        .factor-card.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .factor-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .factor-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 16px;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: #fff;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 12px;
+            transition: all 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #4CAF50;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .input-field::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .canvas-container {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            cursor: crosshair;
+        }
+
+        .color-grid, .emoji-grid, .word-grid {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .color-grid {
+            grid-template-columns: repeat(6, 1fr);
+        }
+
+        .emoji-grid {
+            grid-template-columns: repeat(6, 1fr);
+        }
+
+        .word-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .color-box, .emoji-box, .word-box {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .color-box:hover, .emoji-box:hover, .word-box:hover {
+            transform: scale(1.1);
+        }
+
+        .color-box.selected, .emoji-box.selected, .word-box.selected {
+            border-color: #4CAF50;
+            box-shadow: 0 0 12px rgba(76, 175, 80, 0.6);
+        }
+
+        .emoji-box {
+            font-size: 32px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .word-box {
+            font-size: 12px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            aspect-ratio: auto;
+            min-height: 60px;
+        }
+
+        .gateway-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .gateway-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .gateway-card:hover {
+            border-color: #4CAF50;
+            transform: translateY(-2px);
+        }
+
+        .gateway-card.selected {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        .gateway-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .gateway-name {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .success-screen {
+            text-align: center;
+            padding: 32px 16px;
+        }
+
+        .success-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            animation: bounce 0.6s;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .success-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #4CAF50;
+        }
+
+        .uuid-display {
+            background: rgba(76, 175, 80, 0.1);
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .timer {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: #4CAF50;
+            margin-bottom: 16px;
+        }
+
+        .timer.warning {
+            color: #FFA726;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4CAF50;
+            transition: width 0.3s;
+        }
+
+        .info-text {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .error-message {
+            background: rgba(244, 67, 54, 0.2);
+            border: 2px solid #F44336;
+            border-radius: 8px;
+            padding: 12px;
+            color: #F44336;
+            font-size: 14px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .rhythm-container {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .rhythm-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(76, 175, 80, 0.2);
+            border: 3px solid #4CAF50;
+            cursor: pointer;
+            transition: all 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .rhythm-circle:active {
+            transform: scale(0.9);
+        }
+
+        .rhythm-circle.blink {
+            background: #4CAF50;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+        }
+
+        .image-tap-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .image-tap-svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .tap-indicator {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(76, 175, 80, 0.6);
+            border: 3px solid #4CAF50;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tap-indicator.show {
+            opacity: 1;
+            animation: ripple 0.6s;
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(2);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // ==================== CONSTANTS ====================
+        
+        const FACTORS = [
+            // Available factors
+            { id: 'PIN', name: 'PIN', icon: '🔢', category: 'knowledge', available: true },
+            { id: 'PATTERN', name: 'Pattern', icon: '🔲', category: 'knowledge', available: true },
+            { id: 'WORDS', name: 'Words', icon: '📝', category: 'knowledge', available: true },
+            { id: 'COLOUR', name: 'Colours', icon: '🎨', category: 'knowledge', available: true },
+            { id: 'EMOJI', name: 'Emoji', icon: '😀', category: 'knowledge', available: true },
+            { id: 'RHYTHM_TAP', name: 'Tap Rhythm', icon: '🎵', category: 'behavioral', available: true },
+            { id: 'IMAGE_TAP', name: 'Image Tap', icon: '🖼️', category: 'behavioral', available: true },
+            
+            // Not available yet
+            { id: 'FACE', name: 'Face', icon: '👤', category: 'biometric', available: false },
+            { id: 'FINGERPRINT', name: 'Fingerprint', icon: '👆', category: 'biometric', available: false },
+            { id: 'VOICE', name: 'Voice', icon: '🎤', category: 'biometric', available: false },
+            { id: 'MOUSE_DRAW', name: 'Mouse Draw', icon: '🖱️', category: 'behavioral', available: false },
+            { id: 'STYLUS_DRAW', name: 'Stylus Draw', icon: '✏️', category: 'behavioral', available: false },
+            { id: 'NFC', name: 'NFC', icon: '📱', category: 'possession', available: false },
+            { id: 'BALANCE', name: 'Balance', icon: '⚖️', category: 'location', available: false },
+        ];
+
+        const PAYMENT_GATEWAYS = [
+            { id: 'alipay', name: 'Alipay', icon: '💳', color: '#1677FF' },
+            { id: 'payu', name: 'PayU', icon: '💰', color: '#66C351' },
+            { id: 'stripe', name: 'Stripe', icon: '💵', color: '#635BFF' },
+            { id: 'adyen', name: 'Adyen', icon: '💶', color: '#0ABF53' },
+            { id: 'googlepay', name: 'Google Pay', icon: '🔵', color: '#4285F4' },
+            { id: 'applepay', name: 'Apple Pay', icon: '🍎', color: '#000000' },
+            { id: 'paypal', name: 'PayPal', icon: '🅿️', color: '#003087' },
+            { id: 'square', name: 'Square', icon: '⬛', color: '#3E4348' },
+            { id: 'braintree', name: 'Braintree', icon: '🧠', color: '#00C9FF' },
+            { id: 'mercadopago', name: 'Mercado Pago', icon: '💙', color: '#009EE3' },
+            { id: 'twocheckout', name: '2Checkout', icon: '2️⃣', color: '#0099CC' },
+            { id: 'phantom', name: 'Phantom', icon: '👻', color: '#AB9FF2' },
+            { id: 'yappy', name: 'Yappy', icon: '🇵🇦', color: '#702F8A' },
+            { id: 'nequi', name: 'Nequi', icon: '🇨🇴', color: '#5F259F' },
+        ];
+
+        const COLORS = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F',
+            '#BB8FCE', '#85C1E2', '#F8B739', '#52BE80', '#EC7063', '#5DADE2',
+            '#AF7AC5', '#48C9B0', '#F39C12', '#3498DB', '#E74C3C', '#1ABC9C'
+        ];
+
+        const ALL_EMOJIS = [
+            '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
+            '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙',
+            '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔',
+            '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
+            '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮'
+        ];
+
+        const WORD_LIST = [
+            'apple', 'banana', 'cherry', 'dragon', 'eagle', 'falcon',
+            'giraffe', 'horse', 'iguana', 'jaguar', 'koala', 'lion',
+            'monkey', 'narwhal', 'octopus', 'panda', 'quail', 'rabbit',
+            'snake', 'tiger', 'unicorn', 'vulture', 'whale', 'xerus',
+            'yak', 'zebra', 'anchor', 'bridge', 'castle', 'diamond',
+            'emerald', 'forest', 'galaxy', 'harbor', 'island', 'jungle'
+        ];
+
+        // ==================== IN-MEMORY STORAGE ====================
+        
+        // Use a global variable that persists across re-renders
+        if (!window.zeropayEnrollmentData) {
+            window.zeropayEnrollmentData = null;
+        }
+        
+        const enrollmentStorage = {
+            save(enrollmentData) {
+                window.zeropayEnrollmentData = enrollmentData;
+                console.log('✅ Enrollment saved to window.zeropayEnrollmentData:', enrollmentData);
+                console.log('📋 UUID:', enrollmentData.uuid);
+                console.log('🏷️ Alias:', enrollmentData.alias);
+            },
+            
+            get(uuidOrAlias) {
+                console.log('🔍 Looking for UUID or Alias:', uuidOrAlias);
+                console.log('💾 Current stored data:', window.zeropayEnrollmentData);
+                
+                if (!window.zeropayEnrollmentData) {
+                    console.log('❌ No enrollment data in memory');
+                    return null;
+                }
+                
+                // Check if input matches UUID or alias
+                const matchesUuid = window.zeropayEnrollmentData.uuid === uuidOrAlias;
+                const matchesAlias = window.zeropayEnrollmentData.alias === uuidOrAlias;
+                
+                if (matchesUuid || matchesAlias) {
+                    console.log('✅ Enrollment found! Matched by:', matchesUuid ? 'UUID' : 'Alias');
+                    return window.zeropayEnrollmentData;
+                }
+                
+                console.log('❌ No enrollment found for:', uuidOrAlias);
+                return null;
+            },
+            
+            clear() {
+                window.zeropayEnrollmentData = null;
+                console.log('🗑️ Enrollment cleared from memory');
+            }
+        };
+
+        // ==================== UTILITY FUNCTIONS ====================
+
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        function generateAlias(uuid) {
+            const adjectives = ['Red', 'Blue', 'Gold', 'Zen', 'Ace', 'Max', 'Neo', 'Sky'];
+            const nouns = ['Fox', 'Cat', 'Owl', 'Bee', 'Jay', 'Elk', 'Pup', 'Bat'];
+            const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const noun = nouns[Math.floor(Math.random() * nouns.length)];
+            const num = Math.floor(Math.random() * 99);
+            return `${adjective}${noun}${num}`;
+        }
+
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        // Fuzzy pattern matching with tolerance
+        function patternsAreSimilar(pattern1, pattern2, tolerance = 30) {
+            // If patterns have very different lengths, they're not similar
+            if (Math.abs(pattern1.length - pattern2.length) > pattern1.length * 0.3) {
+                return false;
+            }
+
+            // Sample points at regular intervals for comparison
+            const sampleCount = Math.min(pattern1.length, pattern2.length, 20);
+            const step1 = pattern1.length / sampleCount;
+            const step2 = pattern2.length / sampleCount;
+
+            let totalDistance = 0;
+            let validPoints = 0;
+
+            for (let i = 0; i < sampleCount; i++) {
+                const idx1 = Math.floor(i * step1);
+                const idx2 = Math.floor(i * step2);
+
+                if (idx1 < pattern1.length && idx2 < pattern2.length) {
+                    const p1 = pattern1[idx1];
+                    const p2 = pattern2[idx2];
+                    const distance = Math.sqrt(
+                        Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)
+                    );
+                    totalDistance += distance;
+                    validPoints++;
+                }
+            }
+
+            const averageDistance = totalDistance / validPoints;
+            console.log(`📏 Pattern similarity check: avg distance = ${averageDistance.toFixed(2)}px (tolerance = ${tolerance}px)`);
+            
+            return averageDistance <= tolerance;
+        }
+
+        // ==================== MAIN APP COMPONENT ====================
+
+        function App() {
+            const [mode, setMode] = useState('enrollment'); // 'enrollment' | 'merchant'
+            
+            return (
+                <div className="container">
+                    <div className="header">
+                        <div className="logo">ZeroPay</div>
+                        <div className="subtitle">Device-Free Authentication Demo v3.0</div>
+                    </div>
+                    
+                    <div className="mode-toggle">
+                        <button 
+                            className={`mode-btn ${mode === 'enrollment' ? 'active' : ''}`}
+                            onClick={() => setMode('enrollment')}
+                        >
+                            👤 Enrollment
+                        </button>
+                        <button 
+                            className={`mode-btn ${mode === 'merchant' ? 'active' : ''}`}
+                            onClick={() => setMode('merchant')}
+                        >
+                            🏪 Merchant
+                        </button>
+                    </div>
+                    
+                    {mode === 'enrollment' ? <EnrollmentFlow /> : <MerchantFlow />}
+                </div>
+            );
+        }
+
+        // ==================== ENROLLMENT FLOW ====================
+
+        function EnrollmentFlow() {
+            const [step, setStep] = useState(1);
+            const [selectedFactors, setSelectedFactors] = useState([]);
+            const [factorData, setFactorData] = useState({});
+            const [selectedGateways, setSelectedGateways] = useState([]); // Changed from single to array
+            const [showGatewayAuth, setShowGatewayAuth] = useState(false);
+            const [authingGateway, setAuthingGateway] = useState(null);
+            const [consentGiven, setConsentGiven] = useState(false);
+            const [uuid, setUuid] = useState(null);
+            const [alias, setAlias] = useState(null);
+
+            const handleFactorSelect = (factorId) => {
+                const factor = FACTORS.find(f => f.id === factorId);
+                if (!factor || !factor.available) return;
+                
+                if (selectedFactors.includes(factorId)) {
+                    setSelectedFactors(selectedFactors.filter(f => f !== factorId));
+                } else {
+                    // Allow selecting up to 7 factors (all available)
+                    const availableCount = FACTORS.filter(f => f.available).length;
+                    if (selectedFactors.length < availableCount) {
+                        setSelectedFactors([...selectedFactors, factorId]);
+                    }
+                }
+            };
+
+            const handleFactorDataSubmit = async (factorId, data) => {
+                const digest = await sha256(JSON.stringify(data));
+                setFactorData({
+                    ...factorData,
+                    [factorId]: { rawData: data, digest }
+                });
+            };
+
+            const handleGatewaySelect = (gatewayId) => {
+                if (selectedGateways.includes(gatewayId)) {
+                    setSelectedGateways(selectedGateways.filter(g => g !== gatewayId));
+                } else {
+                    // Show mock auth flow
+                    const gateway = PAYMENT_GATEWAYS.find(g => g.id === gatewayId);
+                    setAuthingGateway(gateway);
+                    setShowGatewayAuth(true);
+                    
+                    // Simulate auth completion after 2 seconds
+                    setTimeout(() => {
+                        setSelectedGateways([...selectedGateways, gatewayId]);
+                        setShowGatewayAuth(false);
+                        setAuthingGateway(null);
+                    }, 2000);
+                }
+            };
+
+            const handleEnrollmentComplete = async () => {
+                const newUuid = generateUUID();
+                const newAlias = generateAlias(newUuid);
+                
+                // Save to in-memory storage
+                const enrollmentData = {
+                    uuid: newUuid,
+                    alias: newAlias,
+                    factors: factorData,
+                    gateways: selectedGateways, // Changed from gateway to gateways (array)
+                    timestamp: new Date().toISOString()
+                };
+                
+                enrollmentStorage.save(enrollmentData);
+                
+                setUuid(newUuid);
+                setAlias(newAlias);
+                setStep(5);
+            };
+
+            const resetEnrollment = () => {
+                setStep(1);
+                setSelectedFactors([]);
+                setFactorData({});
+                setSelectedGateways([]);
+                setShowGatewayAuth(false);
+                setAuthingGateway(null);
+                setConsentGiven(false);
+                setUuid(null);
+                setAlias(null);
+            };
+
+            return (
+                <>
+                    {step < 5 && (
+                        <div className="step-indicator">
+                            {[1, 2, 3, 4, 5].map(num => (
+                                <div key={num} className={`step ${step === num ? 'active' : step > num ? 'completed' : ''}`}>
+                                    <div className="step-number">{num}</div>
+                                    <div className="step-label">
+                                        {num === 1 && 'Select'}
+                                        {num === 2 && 'Capture'}
+                                        {num === 3 && 'Payment'}
+                                        {num === 4 && 'Consent'}
+                                        {num === 5 && 'Done'}
+                                    </div>
+                                    <div className="step-line" />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {step === 1 && (
+                        <Step1FactorSelection 
+                            selectedFactors={selectedFactors}
+                            onFactorSelect={handleFactorSelect}
+                            onNext={() => setStep(2)}
+                        />
+                    )}
+
+                    {step === 2 && (
+                        <Step2FactorCapture 
+                            selectedFactors={selectedFactors}
+                            factorData={factorData}
+                            onFactorDataSubmit={handleFactorDataSubmit}
+                            onBack={() => setStep(1)}
+                            onNext={() => setStep(3)}
+                        />
+                    )}
+
+                    {step === 3 && (
+                        <Step3PaymentLinking 
+                            selectedGateways={selectedGateways}
+                            showGatewayAuth={showGatewayAuth}
+                            authingGateway={authingGateway}
+                            onGatewaySelect={handleGatewaySelect}
+                            onBack={() => setStep(2)}
+                            onNext={() => setStep(4)}
+                        />
+                    )}
+
+                    {step === 4 && (
+                        <Step4Consent 
+                            consentGiven={consentGiven}
+                            onConsentChange={setConsentGiven}
+                            onBack={() => setStep(3)}
+                            onComplete={handleEnrollmentComplete}
+                        />
+                    )}
+
+                    {step === 5 && (
+                        <Step5Confirmation 
+                            uuid={uuid}
+                            alias={alias}
+                            factorCount={selectedFactors.length}
+                            gateways={selectedGateways}
+                            onReset={resetEnrollment}
+                        />
+                    )}
+                </>
+            );
+        }
+
+        // ==================== ENROLLMENT STEPS ====================
+
+        function Step1FactorSelection({ selectedFactors, onFactorSelect, onNext }) {
+            const availableFactors = FACTORS.filter(f => f.available);
+            const unavailableFactors = FACTORS.filter(f => !f.available);
+            const minRequired = 6;
+            const canProceed = selectedFactors.length >= minRequired;
+            
+            return (
+                <div className="card">
+                    <div className="card-title">Step 1: Select Authentication Factors</div>
+                    <div className="info-text">Choose at least 6 factors (required for PSD3 SCA)</div>
+                    
+                    <div style={{ marginBottom: '24px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: '600', color: '#4CAF50', marginBottom: '12px' }}>
+                            Available Factors:
+                        </div>
+                        <div className="factor-grid">
+                            {availableFactors.map(factor => (
+                                <div
+                                    key={factor.id}
+                                    className={`factor-card ${selectedFactors.includes(factor.id) ? 'selected' : ''}`}
+                                    onClick={() => onFactorSelect(factor.id)}
+                                >
+                                    <div className="factor-icon">{factor.icon}</div>
+                                    <div className="factor-name">{factor.name}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {unavailableFactors.length > 0 && (
+                        <div>
+                            <div style={{ fontSize: '12px', fontWeight: '600', color: 'rgba(255, 255, 255, 0.5)', marginBottom: '12px' }}>
+                                Coming Soon:
+                            </div>
+                            <div className="factor-grid">
+                                {unavailableFactors.map(factor => (
+                                    <div
+                                        key={factor.id}
+                                        className="factor-card disabled"
+                                        title="Not available yet"
+                                    >
+                                        <div className="factor-icon">{factor.icon}</div>
+                                        <div className="factor-name">{factor.name}</div>
+                                        <div style={{ fontSize: '9px', color: 'rgba(255, 255, 255, 0.4)', marginTop: '4px' }}>
+                                            Not available yet
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="info-text" style={{ marginTop: '16px' }}>
+                        Selected: {selectedFactors.length}/{availableFactors.length} factors
+                        {selectedFactors.length < minRequired && (
+                            <span style={{ color: '#FFA726', marginLeft: '8px' }}>
+                                (minimum {minRequired} required)
+                            </span>
+                        )}
+                    </div>
+
+                    {!canProceed && selectedFactors.length > 0 && (
+                        <div style={{
+                            background: 'rgba(255, 167, 38, 0.1)',
+                            border: '2px solid #FFA726',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            marginTop: '12px',
+                            fontSize: '14px',
+                            color: '#FFA726',
+                            textAlign: 'center'
+                        }}>
+                            ⚠️ Please select at least {minRequired} factors for security (PSD3 SCA compliance)
+                        </div>
+                    )}
+
+                    <button 
+                        className="btn btn-primary" 
+                        disabled={!canProceed}
+                        onClick={onNext}
+                    >
+                        Continue to Factor Capture →
+                    </button>
+                </div>
+            );
+        }
+
+        function Step2FactorCapture({ selectedFactors, factorData, onFactorDataSubmit, onBack, onNext }) {
+            const [currentFactorIndex, setCurrentFactorIndex] = useState(0);
+            const currentFactorId = selectedFactors[currentFactorIndex];
+            const currentFactor = FACTORS.find(f => f.id === currentFactorId);
+
+            const handleNext = () => {
+                if (currentFactorIndex < selectedFactors.length - 1) {
+                    setCurrentFactorIndex(currentFactorIndex + 1);
+                } else {
+                    onNext();
+                }
+            };
+
+            const handleBack = () => {
+                if (currentFactorIndex > 0) {
+                    setCurrentFactorIndex(currentFactorIndex - 1);
+                } else {
+                    onBack();
+                }
+            };
+
+            const isFactorComplete = factorData[currentFactorId] !== undefined;
+
+            return (
+                <div className="card">
+                    <div className="card-title">Step 2: Capture Factors</div>
+                    <div className="info-text">
+                        Factor {currentFactorIndex + 1} of {selectedFactors.length}: {currentFactor.name}
+                    </div>
+
+                    <div className="progress-bar">
+                        <div 
+                            className="progress-fill" 
+                            style={{ width: `${((currentFactorIndex + 1) / selectedFactors.length) * 100}%` }}
+                        />
+                    </div>
+
+                    <FactorCaptureComponent 
+                        factor={currentFactor}
+                        onSubmit={(data) => onFactorDataSubmit(currentFactorId, data)}
+                        isComplete={isFactorComplete}
+                    />
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button className="btn btn-secondary" onClick={handleBack}>
+                            ← Back
+                        </button>
+                        <button 
+                            className="btn btn-primary" 
+                            disabled={!isFactorComplete}
+                            onClick={handleNext}
+                        >
+                            {currentFactorIndex < selectedFactors.length - 1 ? 'Next Factor →' : 'Continue to Payment →'}
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        function Step3PaymentLinking({ selectedGateways, showGatewayAuth, authingGateway, onGatewaySelect, onBack, onNext }) {
+            return (
+                <div className="card">
+                    <div className="card-title">Step 3: Link Payment Method(s)</div>
+                    <div className="info-text">Select one or more payment providers (can select multiple)</div>
+
+                    <div className="gateway-grid">
+                        {PAYMENT_GATEWAYS.map(gateway => (
+                            <div
+                                key={gateway.id}
+                                className={`gateway-card ${selectedGateways.includes(gateway.id) ? 'selected' : ''}`}
+                                onClick={() => onGatewaySelect(gateway.id)}
+                            >
+                                <div className="gateway-icon">{gateway.icon}</div>
+                                <div className="gateway-name">{gateway.name}</div>
+                                {selectedGateways.includes(gateway.id) && (
+                                    <div style={{ fontSize: '10px', color: '#4CAF50', marginTop: '4px' }}>
+                                        ✓ Connected
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="info-text">
+                        Selected: {selectedGateways.length} gateway{selectedGateways.length !== 1 ? 's' : ''}
+                    </div>
+
+                    {/* Mock Auth Modal */}
+                    {showGatewayAuth && authingGateway && (
+                        <div style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: 'rgba(0, 0, 0, 0.8)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 1000
+                        }}>
+                            <div style={{
+                                background: 'linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)',
+                                borderRadius: '16px',
+                                padding: '32px',
+                                maxWidth: '400px',
+                                width: '90%',
+                                textAlign: 'center',
+                                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
+                            }}>
+                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>
+                                    {authingGateway.icon}
+                                </div>
+                                <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
+                                    Connecting to {authingGateway.name}
+                                </div>
+                                <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '24px' }}>
+                                    Authenticating your account...
+                                </div>
+                                <div style={{
+                                    width: '100%',
+                                    height: '4px',
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '2px',
+                                    overflow: 'hidden'
+                                }}>
+                                    <div style={{
+                                        width: '60%',
+                                        height: '100%',
+                                        background: '#4CAF50',
+                                        animation: 'loading 1.5s ease-in-out infinite'
+                                    }} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button className="btn btn-secondary" onClick={onBack}>
+                            ← Back
+                        </button>
+                        <button 
+                            className="btn btn-primary" 
+                            disabled={selectedGateways.length === 0}
+                            onClick={onNext}
+                        >
+                            Continue to Consent →
+                        </button>
+                    </div>
+
+                    <style>{`
+                        @keyframes loading {
+                            0% { transform: translateX(-100%); }
+                            100% { transform: translateX(250%); }
+                        }
+                    `}</style>
+                </div>
+            );
+        }
+
+        function Step4Consent({ consentGiven, onConsentChange, onBack, onComplete }) {
+            const [dataProcessing, setDataProcessing] = useState(false);
+            const [factorStorage, setFactorStorage] = useState(false);
+            const [paymentLinking, setPaymentLinking] = useState(false);
+
+            // Update parent when all consents are given
+            useEffect(() => {
+                const allConsentsGiven = dataProcessing && factorStorage && paymentLinking;
+                if (allConsentsGiven !== consentGiven) {
+                    onConsentChange(allConsentsGiven);
+                }
+            }, [dataProcessing, factorStorage, paymentLinking]);
+
+            return (
+                <div className="card">
+                    <div className="card-title">Step 4: GDPR Consent</div>
+                    
+                    <div style={{ 
+                        background: 'rgba(255, 255, 255, 0.03)', 
+                        padding: '16px', 
+                        borderRadius: '8px',
+                        marginBottom: '16px',
+                        fontSize: '14px',
+                        lineHeight: '1.6'
+                    }}>
+                        <p style={{ marginBottom: '12px', fontWeight: '600', color: '#4CAF50' }}>
+                            Privacy & Security Agreement
+                        </p>
+                        <p style={{ marginBottom: '8px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                            Please review and accept each consent below to complete enrollment.
+                        </p>
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                        <label style={{ 
+                            display: 'flex', 
+                            alignItems: 'flex-start', 
+                            gap: '12px',
+                            cursor: 'pointer',
+                            padding: '12px',
+                            background: dataProcessing ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                            borderRadius: '8px',
+                            border: '2px solid',
+                            borderColor: dataProcessing ? '#4CAF50' : 'rgba(255, 255, 255, 0.1)',
+                            transition: 'all 0.3s',
+                            marginBottom: '12px'
+                        }}>
+                            <input
+                                type="checkbox"
+                                checked={dataProcessing}
+                                onChange={(e) => setDataProcessing(e.target.checked)}
+                                style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '2px', flexShrink: 0 }}
+                            />
+                            <div>
+                                <div style={{ fontWeight: '600', marginBottom: '4px' }}>Data Processing</div>
+                                <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                                    We process SHA-256 hashes. No raw data stored.
+                                </div>
+                            </div>
+                        </label>
+
+                        <label style={{ 
+                            display: 'flex', 
+                            alignItems: 'flex-start', 
+                            gap: '12px',
+                            cursor: 'pointer',
+                            padding: '12px',
+                            background: factorStorage ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                            borderRadius: '8px',
+                            border: '2px solid',
+                            borderColor: factorStorage ? '#4CAF50' : 'rgba(255, 255, 255, 0.1)',
+                            transition: 'all 0.3s',
+                            marginBottom: '12px'
+                        }}>
+                            <input
+                                type="checkbox"
+                                checked={factorStorage}
+                                onChange={(e) => setFactorStorage(e.target.checked)}
+                                style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '2px', flexShrink: 0 }}
+                            />
+                            <div>
+                                <div style={{ fontWeight: '600', marginBottom: '4px' }}>Factor Storage</div>
+                                <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                                    Digests cached in Redis for 24h, then deleted.
+                                </div>
+                            </div>
+                        </label>
+
+                        <label style={{ 
+                            display: 'flex', 
+                            alignItems: 'flex-start', 
+                            gap: '12px',
+                            cursor: 'pointer',
+                            padding: '12px',
+                            background: paymentLinking ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                            borderRadius: '8px',
+                            border: '2px solid',
+                            borderColor: paymentLinking ? '#4CAF50' : 'rgba(255, 255, 255, 0.1)',
+                            transition: 'all 0.3s'
+                        }}>
+                            <input
+                                type="checkbox"
+                                checked={paymentLinking}
+                                onChange={(e) => setPaymentLinking(e.target.checked)}
+                                style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '2px', flexShrink: 0 }}
+                            />
+                            <div>
+                                <div style={{ fontWeight: '600', marginBottom: '4px' }}>Payment Linking</div>
+                                <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                                    Tokens encrypted with AES-256-GCM.
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button className="btn btn-secondary" onClick={onBack}>
+                            ← Back
+                        </button>
+                        <button 
+                            className="btn btn-primary" 
+                            disabled={!consentGiven}
+                            onClick={onComplete}
+                        >
+                            Complete Enrollment →
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        function Step5Confirmation({ uuid, alias, factorCount, gateways, onReset }) {
+            return (
+                <div className="success-screen">
+                    <div className="success-icon">✅</div>
+                    <div className="success-title">Enrollment Complete!</div>
+                    
+                    <div className="uuid-display">
+                        <div style={{ fontSize: '12px', opacity: 0.7, marginBottom: '8px' }}>Your UUID:</div>
+                        <div style={{ fontSize: '16px', fontWeight: '600' }}>{uuid}</div>
+                        <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '8px' }}>Alias:</div>
+                        <div style={{ fontSize: '16px', fontWeight: '600' }}>{alias}</div>
+                    </div>
+
+                    <div style={{ 
+                        textAlign: 'left', 
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        marginBottom: '16px'
+                    }}>
+                        <p style={{ marginBottom: '8px' }}>✓ {factorCount} authentication factors enrolled</p>
+                        <p style={{ marginBottom: '8px' }}>
+                            ✓ Payment linked: {gateways.map(gId => PAYMENT_GATEWAYS.find(g => g.id === gId)?.name).join(', ')}
+                        </p>
+                        <p style={{ marginBottom: '8px' }}>✓ Data encrypted and cached (24h TTL)</p>
+                        <p>✓ Ready for device-free authentication</p>
+                    </div>
+
+                    <div className="info-text" style={{ marginBottom: '16px' }}>
+                        💡 Use your UUID or Alias at any merchant to authenticate without a device!
+                    </div>
+
+                    <button className="btn btn-primary" onClick={onReset}>
+                        Enroll Another User
+                    </button>
+                </div>
+            );
+        }
+
+        // ==================== FACTOR CAPTURE COMPONENTS ====================
+
+        function FactorCaptureComponent({ factor, onSubmit, isComplete }) {
+            switch (factor.id) {
+                case 'PIN':
+                    return <PinCapture onSubmit={onSubmit} isComplete={isComplete} />;
+                case 'PATTERN':
+                    return <PatternCapture onSubmit={onSubmit} isComplete={isComplete} />;
+                case 'WORDS':
+                    return <WordsCapture onSubmit={onSubmit} isComplete={isComplete} />;
+                case 'COLOUR':
+                    return <ColorCapture onSubmit={onSubmit} isComplete={isComplete} />;
+                case 'EMOJI':
+                    return <EmojiCapture onSubmit={onSubmit} isComplete={isComplete} />;
+                case 'RHYTHM_TAP':
+                    return <RhythmTapCapture onSubmit={onSubmit} isComplete={isComplete} />;
+                case 'IMAGE_TAP':
+                    return <ImageTapCapture onSubmit={onSubmit} isComplete={isComplete} mode="enrollment" />;
+                default:
+                    return <GenericCapture factor={factor} onSubmit={onSubmit} isComplete={isComplete} />;
+            }
+        }
+
+        function PinCapture({ onSubmit, isComplete }) {
+            const [pin, setPin] = useState('');
+
+            const handleSubmit = () => {
+                if (pin.length >= 4) {
+                    onSubmit(pin);
+                }
+            };
+
+            return (
+                <div>
+                    <input
+                        type="password"
+                        className="input-field"
+                        placeholder="Enter 4-12 digit PIN"
+                        value={pin}
+                        onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                        maxLength={12}
+                        disabled={isComplete}
+                    />
+                    {!isComplete && (
+                        <button 
+                            className="btn btn-primary" 
+                            disabled={pin.length < 4}
+                            onClick={handleSubmit}
+                        >
+                            Save PIN
+                        </button>
+                    )}
+                    {isComplete && (
+                        <div style={{ color: '#4CAF50', textAlign: 'center', marginTop: '8px' }}>
+                            ✓ PIN saved
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function PatternCapture({ onSubmit, isComplete }) {
+            const canvasRef = useRef(null);
+            const [isDrawing, setIsDrawing] = useState(false);
+            const [pattern, setPattern] = useState([]);
+
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                canvas.width = canvas.offsetWidth;
+                canvas.height = 300;
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }, []);
+
+            const startDrawing = (e) => {
+                if (isComplete) return;
+                setIsDrawing(true);
+                const point = getPoint(e);
+                setPattern([point]);
+            };
+
+            const draw = (e) => {
+                if (!isDrawing || isComplete) return;
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const point = getPoint(e);
+                
+                setPattern(prev => [...prev, point]);
+                
+                if (pattern.length > 0) {
+                    ctx.strokeStyle = '#4CAF50';
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(pattern[pattern.length - 1].x, pattern[pattern.length - 1].y);
+                    ctx.lineTo(point.x, point.y);
+                    ctx.stroke();
+                }
+            };
+
+            const stopDrawing = () => {
+                setIsDrawing(false);
+            };
+
+            const getPoint = (e) => {
+                const canvas = canvasRef.current;
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return {
+                    x: clientX - rect.left,
+                    y: clientY - rect.top
+                };
+            };
+
+            const handleClear = () => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                // Clear the entire canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // Redraw the background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                // Reset pattern array
+                setPattern([]);
+            };
+
+            const handleSubmit = () => {
+                if (pattern.length >= 3) {
+                    onSubmit(pattern);
+                }
+            };
+
+            return (
+                <div>
+                    <div className="canvas-container">
+                        <canvas
+                            ref={canvasRef}
+                            onMouseDown={startDrawing}
+                            onMouseMove={draw}
+                            onMouseUp={stopDrawing}
+                            onMouseLeave={stopDrawing}
+                            onTouchStart={startDrawing}
+                            onTouchMove={draw}
+                            onTouchEnd={stopDrawing}
+                        />
+                    </div>
+                    {!isComplete && (
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button className="btn btn-secondary" onClick={handleClear}>
+                                Clear
+                            </button>
+                            <button 
+                                className="btn btn-primary" 
+                                disabled={pattern.length < 3}
+                                onClick={handleSubmit}
+                            >
+                                Save Pattern
+                            </button>
+                        </div>
+                    )}
+                    {isComplete && (
+                        <div style={{ color: '#4CAF50', textAlign: 'center', marginTop: '8px' }}>
+                            ✓ Pattern saved
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function WordsCapture({ onSubmit, isComplete }) {
+            const [selectedWords, setSelectedWords] = useState([]);
+            const [availableWords] = useState(WORD_LIST.slice(0, 18));
+
+            const handleWordClick = (word) => {
+                if (isComplete) return;
+                if (selectedWords.includes(word)) {
+                    setSelectedWords(selectedWords.filter(w => w !== word));
+                } else if (selectedWords.length < 4) {
+                    setSelectedWords([...selectedWords, word]);
+                }
+            };
+
+            const handleSubmit = () => {
+                if (selectedWords.length === 4) {
+                    onSubmit(selectedWords);
+                }
+            };
+
+            return (
+                <div>
+                    <div className="info-text">Select 4 words to remember</div>
+                    <div className="word-grid">
+                        {availableWords.map(word => (
+                            <div
+                                key={word}
+                                className={`word-box ${selectedWords.includes(word) ? 'selected' : ''}`}
+                                onClick={() => handleWordClick(word)}
+                                style={{ opacity: isComplete ? 0.5 : 1, cursor: isComplete ? 'default' : 'pointer' }}
+                            >
+                                {word}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="info-text">Selected: {selectedWords.length}/4 words</div>
+                    {!isComplete && (
+                        <button 
+                            className="btn btn-primary" 
+                            disabled={selectedWords.length !== 4}
+                            onClick={handleSubmit}
+                        >
+                            Save Words
+                        </button>
+                    )}
+                    {isComplete && (
+                        <div style={{ color: '#4CAF50', textAlign: 'center', marginTop: '8px' }}>
+                            ✓ Words saved
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function ColorCapture({ onSubmit, isComplete }) {
+            const [selectedColors, setSelectedColors] = useState([]);
+
+            const handleColorClick = (color) => {
+                if (isComplete) return;
+                if (selectedColors.includes(color)) {
+                    setSelectedColors(selectedColors.filter(c => c !== color));
+                } else if (selectedColors.length < 6) {
+                    setSelectedColors([...selectedColors, color]);
+                }
+            };
+
+            const handleSubmit = () => {
+                if (selectedColors.length >= 3) {
+                    onSubmit(selectedColors);
+                }
+            };
+
+            return (
+                <div>
+                    <div className="info-text">Select 3-6 colors</div>
+                    <div className="color-grid">
+                        {COLORS.map(color => (
+                            <div
+                                key={color}
+                                className={`color-box ${selectedColors.includes(color) ? 'selected' : ''}`}
+                                style={{ 
+                                    backgroundColor: color,
+                                    opacity: isComplete ? 0.5 : 1,
+                                    cursor: isComplete ? 'default' : 'pointer'
+                                }}
+                                onClick={() => handleColorClick(color)}
+                            />
+                        ))}
+                    </div>
+                    <div className="info-text">Selected: {selectedColors.length} colors</div>
+                    {!isComplete && (
+                        <button 
+                            className="btn btn-primary" 
+                            disabled={selectedColors.length < 3}
+                            onClick={handleSubmit}
+                        >
+                            Save Colors
+                        </button>
+                    )}
+                    {isComplete && (
+                        <div style={{ color: '#4CAF50', textAlign: 'center', marginTop: '8px' }}>
+                            ✓ Colors saved
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function EmojiCapture({ onSubmit, isComplete }) {
+            const [selectedEmojis, setSelectedEmojis] = useState([]);
+            const [availableEmojis] = useState(ALL_EMOJIS.slice(0, 30));
+
+            const handleEmojiClick = (emoji) => {
+                if (isComplete) return;
+                if (selectedEmojis.includes(emoji)) {
+                    setSelectedEmojis(selectedEmojis.filter(e => e !== emoji));
+                } else if (selectedEmojis.length < 4) {
+                    setSelectedEmojis([...selectedEmojis, emoji]);
+                }
+            };
+
+            const handleSubmit = () => {
+                if (selectedEmojis.length === 4) {
+                    onSubmit(selectedEmojis);
+                }
+            };
+
+            return (
+                <div>
+                    <div className="info-text">Select 4 emojis in order</div>
+                    <div className="emoji-grid">
+                        {availableEmojis.map(emoji => (
+                            <div
+                                key={emoji}
+                                className={`emoji-box ${selectedEmojis.includes(emoji) ? 'selected' : ''}`}
+                                onClick={() => handleEmojiClick(emoji)}
+                                style={{ opacity: isComplete ? 0.5 : 1, cursor: isComplete ? 'default' : 'pointer' }}
+                            >
+                                {emoji}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="info-text">Selected: {selectedEmojis.length}/4 emojis</div>
+                    {!isComplete && (
+                        <button 
+                            className="btn btn-primary" 
+                            disabled={selectedEmojis.length !== 4}
+                            onClick={handleSubmit}
+                        >
+                            Save Emojis
+                        </button>
+                    )}
+                    {isComplete && (
+                        <div style={{ color: '#4CAF50', textAlign: 'center', marginTop: '8px' }}>
+                            ✓ Emojis saved
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function RhythmTapCapture({ onSubmit, isComplete }) {
+            const [taps, setTaps] = useState([]);
+            const [blinkIndex, setBlinkIndex] = useState(null);
+
+            const handleTap = (circleIndex) => {
+                if (isComplete) return;
+                const timestamp = Date.now();
+                setTaps([...taps, { circleIndex, timestamp }]);
+                
+                // Blink effect
+                setBlinkIndex(circleIndex);
+                setTimeout(() => setBlinkIndex(null), 200);
+            };
+
+            const handleClear = () => {
+                setTaps([]);
+            };
+
+            const handleSubmit = () => {
+                if (taps.length >= 3) {
+                    onSubmit(taps);
+                }
+            };
+
+            return (
+                <div>
+                    <div className="info-text">Tap the circles to create your rhythm (min 3 taps)</div>
+                    <div className="rhythm-container">
+                        {[0, 1, 2].map(index => (
+                            <div
+                                key={index}
+                                className={`rhythm-circle ${blinkIndex === index ? 'blink' : ''}`}
+                                onClick={() => handleTap(index)}
+                                style={{ opacity: isComplete ? 0.5 : 1, cursor: isComplete ? 'default' : 'pointer' }}
+                            >
+                                {index + 1}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="info-text">Taps recorded: {taps.length}</div>
+                    {!isComplete && (
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button className="btn btn-secondary" onClick={handleClear}>
+                                Clear
+                            </button>
+                            <button 
+                                className="btn btn-primary" 
+                                disabled={taps.length < 3}
+                                onClick={handleSubmit}
+                            >
+                                Save Rhythm
+                            </button>
+                        </div>
+                    )}
+                    {isComplete && (
+                        <div style={{ color: '#4CAF50', textAlign: 'center', marginTop: '8px' }}>
+                            ✓ Rhythm saved
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function ImageTapCapture({ onSubmit, isComplete, mode, enrolledTaps }) {
+            const [taps, setTaps] = useState([]);
+            const [showIndicators, setShowIndicators] = useState([]);
+            const containerRef = useRef(null);
+
+            const handleImageClick = (e) => {
+                if (isComplete && mode === 'enrollment') return;
+                
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                
+                const newTap = { x, y, timestamp: Date.now() };
+                setTaps([...taps, newTap]);
+                
+                // Show indicator
+                const indicator = { x: e.clientX - rect.left, y: e.clientY - rect.top, id: Date.now() };
+                setShowIndicators([...showIndicators, indicator]);
+                
+                setTimeout(() => {
+                    setShowIndicators(prev => prev.filter(ind => ind.id !== indicator.id));
+                }, 600);
+            };
+
+            const handleClear = () => {
+                setTaps([]);
+            };
+
+            const handleSubmit = () => {
+                if (taps.length >= 3) {
+                    onSubmit(taps);
+                }
+            };
+
+            return (
+                <div>
+                    <div className="info-text">
+                        {mode === 'enrollment' 
+                            ? 'Tap at least 3 specific spots on the image'
+                            : 'Tap the same spots you selected during enrollment'
+                        }
+                    </div>
+                    <div className="image-tap-container" ref={containerRef} onClick={handleImageClick}>
+                        <svg className="image-tap-svg" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="400" height="300" fill="#1A1A2E"/>
+                            <circle cx="100" cy="80" r="40" fill="#4CAF50" opacity="0.3"/>
+                            <circle cx="300" cy="80" r="40" fill="#2196F3" opacity="0.3"/>
+                            <rect x="150" y="120" width="100" height="100" fill="#FFA726" opacity="0.3"/>
+                            <polygon points="200,250 150,280 250,280" fill="#9C27B0" opacity="0.3"/>
+                            <line x1="50" y1="150" x2="350" y2="150" stroke="rgba(255,255,255,0.2)" strokeWidth="2"/>
+                            <line x1="200" y1="50" x2="200" y2="250" stroke="rgba(255,255,255,0.2)" strokeWidth="2"/>
+                        </svg>
+                        {showIndicators.map(indicator => (
+                            <div
+                                key={indicator.id}
+                                className="tap-indicator show"
+                                style={{ left: indicator.x, top: indicator.y }}
+                            />
+                        ))}
+                    </div>
+                    <div className="info-text">Taps: {taps.length}</div>
+                    {!isComplete && mode === 'enrollment' && (
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button className="btn btn-secondary" onClick={handleClear}>
+                                Clear
+                            </button>
+                            <button 
+                                className="btn btn-primary" 
+                                disabled={taps.length < 3}
+                                onClick={handleSubmit}
+                            >
+                                Save Taps
+                            </button>
+                        </div>
+                    )}
+                    {mode === 'merchant' && (
+                        <button 
+                            className="btn btn-primary" 
+                            disabled={taps.length < 3}
+                            onClick={handleSubmit}
+                        >
+                            Submit
+                        </button>
+                    )}
+                    {isComplete && mode === 'enrollment' && (
+                        <div style={{ color: '#4CAF50', textAlign: 'center', marginTop: '8px' }}>
+                            ✓ Taps saved
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function GenericCapture({ factor, onSubmit, isComplete }) {
+            const [value, setValue] = useState('');
+
+            const handleSubmit = () => {
+                if (value.trim()) {
+                    onSubmit(value);
+                }
+            };
+
+            return (
+                <div>
+                    <div className="info-text">Enter your {factor.name.toLowerCase()}</div>
+                    <input
+                        type="text"
+                        className="input-field"
+                        placeholder={`Enter ${factor.name.toLowerCase()}`}
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
+                        disabled={isComplete}
+                    />
+                    {!isComplete && (
+                        <button 
+                            className="btn btn-primary" 
+                            disabled={!value.trim()}
+                            onClick={handleSubmit}
+                        >
+                            Save {factor.name}
+                        </button>
+                    )}
+                    {isComplete && (
+                        <div style={{ color: '#4CAF50', textAlign: 'center', marginTop: '8px' }}>
+                            ✓ {factor.name} saved
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // ==================== MERCHANT FLOW ====================
+
+        function MerchantFlow() {
+            const [stage, setStage] = useState('uuid'); // 'uuid' | 'challenge' | 'gateway' | 'complete'
+            const [uuid, setUuid] = useState('');
+            const [enrollmentData, setEnrollmentData] = useState(null);
+            const [challengeFactors, setChallengeFactors] = useState([]); // Randomly selected factors to challenge
+            const [currentFactorIndex, setCurrentFactorIndex] = useState(0);
+            const [verifiedFactors, setVerifiedFactors] = useState({});
+            const [timeRemaining, setTimeRemaining] = useState(300); // 5 minutes
+            const [error, setError] = useState(null);
+            const [selectedGateway, setSelectedGateway] = useState(null);
+            const [isSuccess, setIsSuccess] = useState(false);
+
+            useEffect(() => {
+                if (stage === 'challenge' && timeRemaining > 0) {
+                    const timer = setInterval(() => {
+                        setTimeRemaining(prev => prev - 1);
+                    }, 1000);
+                    return () => clearInterval(timer);
+                }
+                if (timeRemaining === 0) {
+                    setError('Session timed out. Please start over.');
+                    setStage('uuid');
+                }
+            }, [stage, timeRemaining]);
+
+            const handleUUIDSubmit = () => {
+                const data = enrollmentStorage.get(uuid);
+                if (data) {
+                    setEnrollmentData(data);
+                    setError(null);
+                    
+                    // Randomly select 2-3 factors from enrolled factors
+                    const allFactorIds = Object.keys(data.factors);
+                    const factorCount = Math.random() < 0.5 ? 2 : 3; // 50% chance of 2 or 3 factors
+                    const selectedFactors = shuffleArray(allFactorIds).slice(0, Math.min(factorCount, allFactorIds.length));
+                    
+                    console.log('🎲 Challenge factors selected:', selectedFactors);
+                    console.log('📊 Total enrolled factors:', allFactorIds.length);
+                    
+                    setChallengeFactors(selectedFactors);
+                    setCurrentFactorIndex(0);
+                    setVerifiedFactors({});
+                    setStage('challenge');
+                    setTimeRemaining(300);
+                } else {
+                    setError('UUID or Alias not found. Please check and try again, or complete enrollment first.');
+                }
+            };
+
+            const handleFactorSubmit = async (factorId, submittedData) => {
+                const enrolledFactor = enrollmentData.factors[factorId];
+                let isMatch = false;
+
+                // Special handling for pattern with fuzzy matching
+                if (factorId === 'PATTERN') {
+                    isMatch = patternsAreSimilar(submittedData, enrolledFactor.rawData);
+                    console.log(`🔍 Pattern match result: ${isMatch ? '✅ Similar' : '❌ Different'}`);
+                } else {
+                    // For other factors, use digest comparison
+                    const submittedDigest = await sha256(JSON.stringify(submittedData));
+                    isMatch = submittedDigest === enrolledFactor.digest;
+                }
+                
+                setVerifiedFactors({
+                    ...verifiedFactors,
+                    [factorId]: isMatch
+                });
+
+                if (!isMatch) {
+                    setError(`Authentication failed for ${factorId}. Please try again.`);
+                    return;
+                }
+
+                setError(null);
+
+                if (currentFactorIndex < challengeFactors.length - 1) {
+                    setCurrentFactorIndex(currentFactorIndex + 1);
+                } else {
+                    // All challenge factors verified successfully
+                    setIsSuccess(true);
+                    
+                    // Check if we need to show gateway selection
+                    if (enrollmentData.gateways.length === 1) {
+                        // Skip gateway selection, auto-select the only gateway
+                        setSelectedGateway(enrollmentData.gateways[0]);
+                        setStage('complete');
+                    } else {
+                        // Show gateway selection for multiple gateways
+                        setStage('gateway');
+                    }
+                }
+            };
+
+            const handleGatewaySubmit = () => {
+                setStage('complete');
+            };
+
+            const handleReset = () => {
+                setStage('uuid');
+                setUuid('');
+                setEnrollmentData(null);
+                setChallengeFactors([]);
+                setCurrentFactorIndex(0);
+                setVerifiedFactors({});
+                setTimeRemaining(300);
+                setError(null);
+                setSelectedGateway(null);
+                setIsSuccess(false);
+            };
+
+            const formatTime = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            };
+
+            return (
+                <>
+                    {stage === 'uuid' && (
+                        <div className="card">
+                            <div className="card-title">Merchant Verification</div>
+                            <div className="info-text">Enter customer UUID or Alias to begin authentication</div>
+                            
+                            {error && <div className="error-message">{error}</div>}
+                            
+                            <input
+                                type="text"
+                                className="input-field"
+                                placeholder="UUID or Alias (e.g., RedFox42 or 550e8400-...)"
+                                value={uuid}
+                                onChange={(e) => setUuid(e.target.value)}
+                            />
+                            
+                            <button 
+                                className="btn btn-primary" 
+                                disabled={!uuid.trim()}
+                                onClick={handleUUIDSubmit}
+                            >
+                                Verify Customer →
+                            </button>
+
+                            <div className="info-text" style={{ marginTop: '16px' }}>
+                                💡 Tip: Complete enrollment first to get a UUID or Alias
+                            </div>
+                        </div>
+                    )}
+
+                    {stage === 'challenge' && enrollmentData && (
+                        <MerchantChallenge 
+                            enrollmentData={enrollmentData}
+                            challengeFactors={challengeFactors}
+                            currentFactorIndex={currentFactorIndex}
+                            verifiedFactors={verifiedFactors}
+                            timeRemaining={timeRemaining}
+                            error={error}
+                            onFactorSubmit={handleFactorSubmit}
+                            formatTime={formatTime}
+                        />
+                    )}
+
+                    {stage === 'gateway' && (
+                        <div className="card">
+                            <div className="card-title">Select Payment Gateway</div>
+                            <div className="info-text">Choose how to complete the payment</div>
+
+                            <div className="gateway-grid">
+                                {enrollmentData.gateways.map(gatewayId => {
+                                    const gateway = PAYMENT_GATEWAYS.find(g => g.id === gatewayId);
+                                    return (
+                                        <div
+                                            key={gateway.id}
+                                            className={`gateway-card ${selectedGateway === gateway.id ? 'selected' : ''}`}
+                                            onClick={() => setSelectedGateway(gateway.id)}
+                                        >
+                                            <div className="gateway-icon">{gateway.icon}</div>
+                                            <div className="gateway-name">{gateway.name}</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <button 
+                                className="btn btn-primary" 
+                                disabled={!selectedGateway}
+                                onClick={handleGatewaySubmit}
+                            >
+                                Complete Payment →
+                            </button>
+                        </div>
+                    )}
+
+                    {stage === 'complete' && (
+                        <div className="success-screen">
+                            <div className="success-icon">✅</div>
+                            <div className="success-title">User Authenticated!</div>
+                            
+                            <div style={{ 
+                                textAlign: 'left', 
+                                background: 'rgba(255, 255, 255, 0.03)',
+                                padding: '16px',
+                                borderRadius: '8px',
+                                marginBottom: '16px',
+                                border: '1px solid rgba(76, 175, 80, 0.3)'
+                            }}>
+                                <p style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
+                                    <span style={{ color: '#4CAF50', marginRight: '8px' }}>✓</span>
+                                    All factors verified successfully
+                                </p>
+                                <p style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
+                                    <span style={{ color: '#4CAF50', marginRight: '8px' }}>✓</span>
+                                    Gateway: {PAYMENT_GATEWAYS.find(g => g.id === selectedGateway)?.name}
+                                </p>
+                                <p style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
+                                    <span style={{ color: '#4CAF50', marginRight: '8px' }}>✓</span>
+                                    Status: SUCCESS
+                                </p>
+                                <p style={{ display: 'flex', alignItems: 'center' }}>
+                                    <span style={{ color: '#4CAF50', marginRight: '8px' }}>✓</span>
+                                    Time: {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                </p>
+                            </div>
+
+                            <div style={{
+                                background: 'rgba(33, 150, 243, 0.1)',
+                                border: '2px solid rgba(33, 150, 243, 0.3)',
+                                borderRadius: '8px',
+                                padding: '16px',
+                                marginBottom: '16px',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{ fontSize: '24px', marginBottom: '8px' }}>💳</div>
+                                <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
+                                    Transaction handed off to <strong>{PAYMENT_GATEWAYS.find(g => g.id === selectedGateway)?.name}</strong>. They'll process the payment.
+                                </div>
+                            </div>
+
+                            <button className="btn btn-primary" onClick={handleReset}>
+                                Verify Another Customer
+                            </button>
+                        </div>
+                    )}
+                </>
+            );
+        }
+
+        function MerchantChallenge({ enrollmentData, challengeFactors, currentFactorIndex, verifiedFactors, timeRemaining, error, onFactorSubmit, formatTime }) {
+            const currentFactorId = challengeFactors[currentFactorIndex];
+            const currentFactor = FACTORS.find(f => f.id === currentFactorId);
+            const progress = ((currentFactorIndex + 1) / challengeFactors.length) * 100;
+
+            return (
+                <div className="card">
+                    <div className="card-title">Factor Challenge</div>
+                    
+                    <div className={`timer ${timeRemaining < 60 ? 'warning' : ''}`}>
+                        ⏱️ {formatTime(timeRemaining)}
+                    </div>
+
+                    <div className="progress-bar">
+                        <div className="progress-fill" style={{ width: `${progress}%` }} />
+                    </div>
+
+                    <div className="info-text">
+                        Factor {currentFactorIndex + 1} of {challengeFactors.length}: {currentFactor.name}
+                    </div>
+
+                    {error && <div className="error-message">{error}</div>}
+
+                    <MerchantFactorChallenge 
+                        factor={currentFactor}
+                        enrolledData={enrollmentData.factors[currentFactorId].rawData}
+                        onSubmit={(data) => onFactorSubmit(currentFactorId, data)}
+                    />
+                </div>
+            );
+        }
+
+        function MerchantFactorChallenge({ factor, enrolledData, onSubmit }) {
+            switch (factor.id) {
+                case 'PIN':
+                    return <PinCapture onSubmit={onSubmit} isComplete={false} />;
+                case 'PATTERN':
+                    return <PatternCapture onSubmit={onSubmit} isComplete={false} />;
+                case 'WORDS':
+                    return <WordsMerchantChallenge enrolledData={enrolledData} onSubmit={onSubmit} />;
+                case 'COLOUR':
+                    return <ColorMerchantChallenge enrolledData={enrolledData} onSubmit={onSubmit} />;
+                case 'EMOJI':
+                    return <EmojiMerchantChallenge enrolledData={enrolledData} onSubmit={onSubmit} />;
+                case 'RHYTHM_TAP':
+                    return <RhythmTapCapture onSubmit={onSubmit} isComplete={false} />;
+                case 'IMAGE_TAP':
+                    return <ImageTapCapture onSubmit={onSubmit} isComplete={false} mode="merchant" enrolledTaps={enrolledData} />;
+                default:
+                    return <GenericCapture factor={factor} onSubmit={onSubmit} isComplete={false} />;
+            }
+        }
+
+        function EmojiMerchantChallenge({ enrolledData, onSubmit }) {
+            const [selectedEmojis, setSelectedEmojis] = useState([]);
+            const [shuffledEmojis, setShuffledEmojis] = useState([]);
+
+            useEffect(() => {
+                // Create a shuffled grid of 12 emojis including the enrolled ones
+                const enrolled = enrolledData;
+                const remaining = shuffleArray(ALL_EMOJIS.filter(e => !enrolled.includes(e))).slice(0, 8);
+                const grid = shuffleArray([...enrolled, ...remaining]);
+                setShuffledEmojis(grid);
+            }, [enrolledData]);
+
+            const handleEmojiClick = (emoji) => {
+                if (selectedEmojis.includes(emoji)) {
+                    setSelectedEmojis(selectedEmojis.filter(e => e !== emoji));
+                } else if (selectedEmojis.length < 4) {
+                    setSelectedEmojis([...selectedEmojis, emoji]);
+                }
+            };
+
+            const handleSubmit = () => {
+                if (selectedEmojis.length === 4) {
+                    onSubmit(selectedEmojis);
+                }
+            };
+
+            return (
+                <div>
+                    <div className="info-text">Select your 4 emojis in order</div>
+                    <div className="emoji-grid">
+                        {shuffledEmojis.map(emoji => (
+                            <div
+                                key={emoji}
+                                className={`emoji-box ${selectedEmojis.includes(emoji) ? 'selected' : ''}`}
+                                onClick={() => handleEmojiClick(emoji)}
+                            >
+                                {emoji}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="info-text">Selected: {selectedEmojis.length}/4 emojis</div>
+                    <button 
+                        className="btn btn-primary" 
+                        disabled={selectedEmojis.length !== 4}
+                        onClick={handleSubmit}
+                    >
+                        Submit
+                    </button>
+                </div>
+            );
+        }
+
+        function WordsMerchantChallenge({ enrolledData, onSubmit }) {
+            const [selectedWords, setSelectedWords] = useState([]);
+            const [shuffledWords, setShuffledWords] = useState([]);
+
+            useEffect(() => {
+                // Create a shuffled grid of 12 words including the enrolled ones
+                const enrolled = enrolledData;
+                const remaining = shuffleArray(WORD_LIST.filter(w => !enrolled.includes(w))).slice(0, 8);
+                const grid = shuffleArray([...enrolled, ...remaining]);
+                setShuffledWords(grid);
+            }, [enrolledData]);
+
+            const handleWordClick = (word) => {
+                if (selectedWords.includes(word)) {
+                    setSelectedWords(selectedWords.filter(w => w !== word));
+                } else if (selectedWords.length < 4) {
+                    setSelectedWords([...selectedWords, word]);
+                }
+            };
+
+            const handleSubmit = () => {
+                if (selectedWords.length === 4) {
+                    onSubmit(selectedWords);
+                }
+            };
+
+            return (
+                <div>
+                    <div className="info-text">Select your 4 words in order</div>
+                    <div className="word-grid">
+                        {shuffledWords.map(word => (
+                            <div
+                                key={word}
+                                className={`word-box ${selectedWords.includes(word) ? 'selected' : ''}`}
+                                onClick={() => handleWordClick(word)}
+                            >
+                                {word}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="info-text">Selected: {selectedWords.length}/4 words</div>
+                    <button 
+                        className="btn btn-primary" 
+                        disabled={selectedWords.length !== 4}
+                        onClick={handleSubmit}
+                    >
+                        Submit
+                    </button>
+                </div>
+            );
+        }
+
+        function ColorMerchantChallenge({ enrolledData, onSubmit }) {
+            const [selectedColors, setSelectedColors] = useState([]);
+            const [shuffledColors] = useState(shuffleArray(COLORS));
+
+            const handleColorClick = (color) => {
+                if (selectedColors.includes(color)) {
+                    setSelectedColors(selectedColors.filter(c => c !== color));
+                } else if (selectedColors.length < enrolledData.length) {
+                    setSelectedColors([...selectedColors, color]);
+                }
+            };
+
+            const handleSubmit = () => {
+                if (selectedColors.length === enrolledData.length) {
+                    onSubmit(selectedColors);
+                }
+            };
+
+            return (
+                <div>
+                    <div className="info-text">Select your colors in order</div>
+                    <div className="color-grid">
+                        {shuffledColors.map(color => (
+                            <div
+                                key={color}
+                                className={`color-box ${selectedColors.includes(color) ? 'selected' : ''}`}
+                                style={{ backgroundColor: color }}
+                                onClick={() => handleColorClick(color)}
+                            />
+                        ))}
+                    </div>
+                    <div className="info-text">Selected: {selectedColors.length}/{enrolledData.length} colors</div>
+                    <button 
+                        className="btn btn-primary" 
+                        disabled={selectedColors.length !== enrolledData.length}
+                        onClick={handleSubmit}
+                    >
+                        Submit
+                    </button>
+                </div>
+            );
+        }
+
+        // ==================== RENDER ====================
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
