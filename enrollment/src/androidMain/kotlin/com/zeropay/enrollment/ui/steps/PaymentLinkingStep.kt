@@ -346,7 +346,8 @@ private fun PaymentProviderCard(
                                 when (provider.linkType) {
                                     EnrollmentConfig.PaymentLinkType.OAUTH -> Color(0xFF2196F3)
                                     EnrollmentConfig.PaymentLinkType.HASHED_REF -> Color(0xFF9C27B0)
-                                    EnrollmentConfig.PaymentLinkType.NFC -> Color(0xFFFF9800)
+                                    // TODO: Add NFC support
+                                    // EnrollmentConfig.PaymentLinkType.NFC -> Color(0xFFFF9800)
                                 }
                             )
                             .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -466,13 +467,14 @@ private fun PaymentLinkDialog(
                             )
                         }
                     }
-                    
-                    EnrollmentConfig.PaymentLinkType.NFC -> {
-                        Text(
-                            text = "NFC linking coming soon!",
-                            fontSize = 14.sp
-                        )
-                    }
+
+                    // TODO: Add NFC support
+                    // EnrollmentConfig.PaymentLinkType.NFC -> {
+                    //     Text(
+                    //         text = "NFC linking coming soon!",
+                    //         fontSize = 14.sp
+                    //     )
+                    // }
                 }
                 
                 if (linkingState is PaymentLinkingState.Error) {
@@ -501,11 +503,12 @@ private fun PaymentLinkDialog(
                                 EnrollmentConfig.PaymentProvider.YAPPY,
                                 EnrollmentConfig.PaymentProvider.NEQUI -> 
                                     mapOf("phone" to phone)
-                                else -> 
+                                else ->
                                     mapOf("email" to email)
                             }
                         }
-                        EnrollmentConfig.PaymentLinkType.NFC -> emptyMap()
+                        // TODO: Add NFC support
+                        // EnrollmentConfig.PaymentLinkType.NFC -> emptyMap()
                     }
                     onLink(linkData)
                 },
@@ -517,11 +520,12 @@ private fun PaymentLinkDialog(
                             EnrollmentConfig.PaymentProvider.YAPPY,
                             EnrollmentConfig.PaymentProvider.NEQUI -> 
                                 phone.isNotBlank() && linkingState !is PaymentLinkingState.Linking
-                            else -> 
+                            else ->
                                 email.contains("@") && linkingState !is PaymentLinkingState.Linking
                         }
                     }
-                    EnrollmentConfig.PaymentLinkType.NFC -> false
+                    // TODO: Add NFC support
+                    // EnrollmentConfig.PaymentLinkType.NFC -> false
                 }
             ) {
                 Text("Link")

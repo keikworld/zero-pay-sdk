@@ -383,6 +383,23 @@ private fun ConsentCard(
                                 fontSize = 11.sp
                             )
                         }
+
+                        EnrollmentConfig.ConsentType.GDPR_COMPLIANCE -> {
+                            Text(
+                                text = "Your GDPR Rights:",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "• Right to access your data\n" +
+                                      "• Right to erasure (delete all data)\n" +
+                                      "• Right to data portability\n" +
+                                      "• Right to withdraw consent anytime",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 11.sp
+                            )
+                        }
                     }
                 }
             }

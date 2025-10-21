@@ -115,12 +115,55 @@ fun VoiceEnrollmentCanvas(
     }
     
     // ==================== RECORDING LOGIC ====================
-    
+
+    fun handleRecordingComplete() {
+        when (stage) {
+            VoiceStage.INITIAL -> {
+                // Save recording and move to confirmation
+                initialAudioFile = audioFile
+                stage = VoiceStage.CONFIRM
+                recordingDuration = 0f
+            }
+
+            VoiceStage.CONFIRM -> {
+                // Just mark as ready to submit, actual submit happens in button click
+                errorMessage = null
+            }
+        }
+    }
+
+    fun stopRecording() {
+        try {
+            mediaRecorder?.apply {
+                stop()
+                release()
+            }
+            mediaRecorder = null
+            isRecording = false
+
+            // Validate duration
+            if (recordingDuration < minDuration) {
+                errorMessage = "Recording too short. Please record for at least $minDuration seconds."
+                audioFile?.delete()
+                audioFile = null
+                recordingDuration = 0f
+                return
+            }
+
+            // Process recording
+            handleRecordingComplete()
+
+        } catch (e: Exception) {
+            errorMessage = "Failed to stop recording: ${e.message}"
+            isRecording = false
+        }
+    }
+
     fun startRecording() {
         try {
             // Create temp file
             audioFile = File.createTempFile("voice_", ".m4a", context.cacheDir)
-            
+
             // Initialize MediaRecorder
             mediaRecorder = MediaRecorder().apply {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
@@ -132,92 +175,54 @@ fun VoiceEnrollmentCanvas(
                 prepare()
                 start()
             }
-            
+
             isRecording = true
             recordingDuration = 0f
             errorMessage = null
-            
+
             // Update duration counter
             scope.launch {
                 while (isRecording && recordingDuration < maxDuration) {
                     delay(100)
                     recordingDuration += 0.1f
                 }
-                
+
                 // Auto-stop at max duration
                 if (isRecording && recordingDuration >= maxDuration) {
                     stopRecording()
                 }
             }
-            
+
         } catch (e: Exception) {
             errorMessage = "Failed to start recording: ${e.message}"
             isRecording = false
         }
     }
-    
-    fun stopRecording() {
-        try {
-            mediaRecorder?.apply {
-                stop()
-                release()
-            }
-            mediaRecorder = null
-            isRecording = false
-            
-            // Validate duration
-            if (recordingDuration < minDuration) {
-                errorMessage = "Recording too short. Please record for at least $minDuration seconds."
-                audioFile?.delete()
-                audioFile = null
-                recordingDuration = 0f
-                return
-            }
-            
-            // Process recording
-            handleRecordingComplete()
-            
-        } catch (e: Exception) {
-            errorMessage = "Failed to stop recording: ${e.message}"
-            isRecording = false
-        }
-    }
-    
-    fun handleRecordingComplete() {
-        when (stage) {
-            VoiceStage.INITIAL -> {
-                // Save recording and move to confirmation
-                initialAudioFile = audioFile
-                stage = VoiceStage.CONFIRM
-                recordingDuration = 0f
-            }
-            
-            VoiceStage.CONFIRM -> {
-                // Submit both recordings
-                handleSubmit()
-            }
-        }
-    }
-    
+
     suspend fun handleSubmit() {
         isProcessing = true
         errorMessage = null
-        
+
         try {
-            val result = VoiceFactor.processVoiceSample(
-                initialAudioFile!!,
-                audioFile!!
+            // Read audio file bytes
+            val audioBytes = audioFile!!.readBytes()
+            val durationMs = (recordingDuration * 1000).toLong()
+
+            val result = VoiceFactor.processVoiceAudio(
+                audioData = audioBytes,
+                sampleRate = 44100,  // Matching MediaRecorder sample rate
+                durationMs = durationMs
             )
-            
+
             if (result.isSuccess) {
                 val digest = result.getOrNull()!!
-                
-                // Delete audio files (security)
+
+                // Delete audio files (security - GDPR compliance)
                 initialAudioFile?.delete()
                 audioFile?.delete()
                 initialAudioFile = null
                 audioFile = null
-                
+
                 onDone(digest)
             } else {
                 errorMessage = result.exceptionOrNull()?.message ?: "Voice verification failed"

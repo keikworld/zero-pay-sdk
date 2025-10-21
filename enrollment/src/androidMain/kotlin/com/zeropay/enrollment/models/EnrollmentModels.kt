@@ -139,49 +139,10 @@ data class PaymentProviderLink(
     }
 }
 
-/**
- * Enrollment result
- */
-sealed class EnrollmentResult {
-    data class Success(
-        val user: User,
-        val factorCount: Int,
-        val cacheKey: String,
-        val linkedProviders: List<String>
-    ) : EnrollmentResult()
-    
-    data class Failure(
-        val error: EnrollmentError,
-        val message: String,
-        val retryable: Boolean = true
-    ) : EnrollmentResult()
-}
-
-/**
- * User model - GDPR compliant
- */
-data class User(
-    val uuid: String,
-    val alias: String,
-    val enrolledAt: Long = System.currentTimeMillis()
-)
-
-/**
- * Enrollment errors
- */
-enum class EnrollmentError {
-    INVALID_FACTOR,
-    INSUFFICIENT_FACTORS,
-    FACTOR_CAPTURE_FAILED,
-    PAYMENT_LINKING_FAILED,
-    CONSENT_REQUIRED,
-    SESSION_EXPIRED,
-    RATE_LIMIT_EXCEEDED,
-    NETWORK_ERROR,
-    ENCRYPTION_ERROR,
-    STORAGE_ERROR,
-    UNKNOWN_ERROR
-}
+// NOTE: EnrollmentResult, User, and EnrollmentError are defined in separate files
+// - EnrollmentResult.kt
+// - User.kt
+// (removed duplicates to avoid redeclaration errors)
 
 /**
  * Factor capture state
@@ -202,12 +163,5 @@ sealed class FactorCaptureState {
     data class Error(val message: String) : FactorCaptureState()
 }
 
-/**
- * Payment linking state
- */
-sealed class PaymentLinkingState {
-    object Idle : PaymentLinkingState()
-    object Linking : PaymentLinkingState()
-    data class Success(val link: PaymentProviderLink) : PaymentLinkingState()
-    data class Error(val message: String) : PaymentLinkingState()
-}
+// NOTE: PaymentLinkingState is defined in PaymentLinkingState.kt
+// (removed duplicate to avoid redeclaration error)

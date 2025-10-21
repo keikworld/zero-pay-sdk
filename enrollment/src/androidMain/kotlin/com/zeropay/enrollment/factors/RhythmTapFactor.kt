@@ -1,3 +1,8 @@
+package com.zeropay.enrollment.factors
+
+import com.zeropay.sdk.security.CryptoUtils
+import java.util.Arrays
+
 /**
  * RhythmTapFactor - Enrollment Wrapper
  * Path: enrollment/src/androidMain/kotlin/com/zeropay/enrollment/factors/RhythmTapFactor.kt

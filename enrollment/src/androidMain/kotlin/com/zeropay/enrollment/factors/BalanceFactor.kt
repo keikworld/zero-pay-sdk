@@ -1,27 +1,18 @@
+package com.zeropay.enrollment.factors
+
+import com.zeropay.sdk.security.CryptoUtils
+import java.util.Arrays
+
 /**
- * Balance Factor - PRODUCTION VERSION
- * 
- * Handles accelerometer-based balance authentication.
- * 
- * Security Features:
- * - Accelerometer data validation
- * - Movement pattern analysis
- * - DoS protection (bounded data)
- * - Immediate sensor data wiping
- * 
- * GDPR Compliance:
- * - Only stores SHA-256 hash
- * - Sensor data deleted immediately
- * - Behavioral biometric (less sensitive than face/fingerprint)
- * 
- * PSD3 Category: INHERENCE (behavioral biometric)
- * 
- * Sensor: Accelerometer (X, Y, Z axis)
- * Duration: 3-5 seconds
- * Sample Rate: 50Hz
- * 
+ * Balance Factor - PRODUCTION VERSION (Enrollment Wrapper)
+ *
+ * Wraps SDK BalanceFactor for enrollment UI.
+ *
+ * This module provides UI-specific helpers while delegating
+ * core digest generation to SDK's BalanceFactor.
+ *
  * @version 1.0.0
- * @date 2025-10-08
+ * @date 2025-10-20
  */
 object BalanceFactor {
     
@@ -69,9 +60,19 @@ object BalanceFactor {
             // Extract balance features
             val features = extractBalanceFeatures(samples)
             
-            // Generate SHA-256 digest
-            val digest = CryptoUtils.sha256(features)
-            
+            // Convert to SDK BalancePoint format and use SDK digest method
+            val balancePoints = samples.map { sample ->
+                com.zeropay.sdk.factors.BalanceFactor.BalancePoint(
+                    x = sample.x,
+                    y = sample.y,
+                    z = sample.z,
+                    timestamp = sample.timestamp
+                )
+            }
+
+            // Use SDK's digest method
+            val digest = com.zeropay.sdk.factors.BalanceFactor.digest(balancePoints)
+
             // Memory wiping
             Arrays.fill(features, 0.toByte())
             
@@ -90,9 +91,10 @@ object BalanceFactor {
         
         // Add all sample data
         samples.forEach { sample ->
-            features.addAll(CryptoUtils.floatToBytes(sample.x).toList())
-            features.addAll(CryptoUtils.floatToBytes(sample.y).toList())
-            features.addAll(CryptoUtils.floatToBytes(sample.z).toList())
+            // Convert float to bytes (simple implementation)
+            features.addAll(sample.x.toBits().toLong().let { CryptoUtils.longToBytes(it) }.toList())
+            features.addAll(sample.y.toBits().toLong().let { CryptoUtils.longToBytes(it) }.toList())
+            features.addAll(sample.z.toBits().toLong().let { CryptoUtils.longToBytes(it) }.toList())
             features.addAll(CryptoUtils.longToBytes(sample.timestamp).toList())
         }
         
@@ -110,7 +112,7 @@ object BalanceFactor {
         return CryptoUtils.constantTimeEquals(inputDigest, storedDigest)
     }
     
-    fun getMinDurationMs(): Long = MIN_DURATION_MS
-    fun getMaxDurationMs(): Long = MAX_DURATION_MS
+    fun getMinDurationMs(): Long = MIN_DURATION_MS.toLong()
+    fun getMaxDurationMs(): Long = MAX_DURATION_MS.toLong()
     fun getSampleRate(): Int = SAMPLE_RATE_HZ
 }

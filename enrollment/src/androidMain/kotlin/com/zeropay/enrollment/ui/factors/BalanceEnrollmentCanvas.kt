@@ -149,32 +149,7 @@ fun BalanceEnrollmentCanvas(
     }
     
     // ==================== RECORDING LOGIC ====================
-    
-    fun startRecording() {
-        isRecording = true
-        recordingProgress = 0f
-        balanceSamples = emptyList()
-        errorMessage = null
-        
-        scope.launch {
-            val startTime = System.currentTimeMillis()
-            while (isRecording && (System.currentTimeMillis() - startTime) < recordingDuration) {
-                delay(50)
-                recordingProgress = (System.currentTimeMillis() - startTime).toFloat() / recordingDuration
-            }
-            
-            if (isRecording) {
-                stopRecording()
-            }
-        }
-    }
-    
-    fun stopRecording() {
-        isRecording = false
-        recordingProgress = 0f
-        handleRecordingComplete()
-    }
-    
+
     fun handleRecordingComplete() {
         // Validate samples
         if (balanceSamples.size < 50) {
@@ -182,19 +157,19 @@ fun BalanceEnrollmentCanvas(
             balanceSamples = emptyList()
             return
         }
-        
+
         // Check if user maintained reasonable balance
         val avgScore = balanceSamples.map { sample ->
             val magnitude = sqrt(sample.x * sample.x + sample.y * sample.y)
             1f - (magnitude / 10f).coerceIn(0f, 1f)
         }.average().toFloat()
-        
+
         if (avgScore < 0.5f) {
             errorMessage = "Balance too unstable. Please try to keep device level."
             balanceSamples = emptyList()
             return
         }
-        
+
         when (stage) {
             BalanceStage.INITIAL -> {
                 initialSamples = balanceSamples
@@ -202,18 +177,54 @@ fun BalanceEnrollmentCanvas(
                 balanceSamples = emptyList()
             }
             BalanceStage.CONFIRM -> {
-                handleSubmit()
+                // Just mark as ready to submit, actual submit happens in button click
+                errorMessage = null
             }
         }
     }
-    
+
+    fun stopRecording() {
+        isRecording = false
+        recordingProgress = 0f
+        handleRecordingComplete()
+    }
+
+    fun startRecording() {
+        isRecording = true
+        recordingProgress = 0f
+        balanceSamples = emptyList()
+        errorMessage = null
+
+        scope.launch {
+            val startTime = System.currentTimeMillis()
+            while (isRecording && (System.currentTimeMillis() - startTime) < recordingDuration) {
+                delay(50)
+                recordingProgress = (System.currentTimeMillis() - startTime).toFloat() / recordingDuration
+            }
+
+            if (isRecording) {
+                stopRecording()
+            }
+        }
+    }
+
     suspend fun handleSubmit() {
         isProcessing = true
         errorMessage = null
-        
+
         try {
-            val result = BalanceFactor.processBalanceSamples(initialSamples, balanceSamples)
-            
+            // Convert BalanceSample to AccelerometerSample format expected by BalanceFactor
+            val accelerometerSamples = balanceSamples.map { sample ->
+                BalanceFactor.AccelerometerSample(
+                    x = sample.x,
+                    y = sample.y,
+                    z = sample.z,
+                    timestamp = sample.timestamp
+                )
+            }
+
+            val result = BalanceFactor.processBalanceData(accelerometerSamples)
+
             if (result.isSuccess) {
                 val digest = result.getOrNull()!!
                 balanceSamples = emptyList()

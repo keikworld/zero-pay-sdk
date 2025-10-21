@@ -84,7 +84,7 @@ object PaymentTokenEncryption {
             password = password,
             salt = salt,
             iterations = PBKDF2_ITERATIONS,
-            keyLength = AES_KEY_LENGTH
+            keyLengthBytes = AES_KEY_LENGTH
         )
     }
     

@@ -365,6 +365,7 @@ class EnrollmentManager(
      */
     @Deprecated("Use enrollWithSession for full wizard integration")
     suspend fun enroll(
+        context: Context,
         factors: Map<Factor, ByteArray>
     ): EnrollmentResult = withContext(Dispatchers.IO) {
         // Create minimal session
@@ -375,9 +376,9 @@ class EnrollmentManager(
             capturedFactors = factors,
             currentStep = EnrollmentStep.CONFIRMATION
         )
-        
+
         // Call new method
-        enrollWithSession(session)
+        enrollWithSession(context, session)
     }
     
     // ==================== API INTEGRATION METHODS ====================
@@ -402,33 +403,36 @@ class EnrollmentManager(
         return try {
             // Convert factor digests to API format
             val apiFactors = factorDigests.map { (factor, digest) ->
-                FactorDigest(
+                com.zeropay.sdk.models.api.FactorDigest(
                     type = factor.name,
                     digest = CryptoUtils.bytesToHex(digest)
                 )
             }
 
-            // Build enrollment request
-            val request = com.zeropay.sdk.models.api.EnrollmentRequest(
-                user_uuid = uuid,
-                factors = apiFactors,
-                device_id = deviceId,
-                ttl_seconds = 86400, // 24 hours
-                nonce = generateNonce(),
-                timestamp = Instant.now().toString(),
-                gdpr_consent = session.consents.values.all { it },
-                consent_timestamp = Instant.now().toString()
-            )
-
-            // Execute via BackendIntegration if available, otherwise direct
+            // Call EnrollmentClient.enroll() with correct signature
+            // Signature: enroll(userUuid, factors, deviceId, ttlSeconds, gdprConsent)
             val response = if (backendIntegration != null) {
                 backendIntegration.execute(
-                    primary = { enrollmentClient.enroll(request).getOrThrow() },
+                    primary = {
+                        enrollmentClient.enroll(
+                            userUuid = uuid,
+                            factors = apiFactors,
+                            deviceId = deviceId,
+                            ttlSeconds = 86400, // 24 hours
+                            gdprConsent = session.consents.values.all { it }
+                        ).getOrThrow()
+                    },
                     fallback = null, // We handle fallback at manager level
                     operationName = "enrollment"
                 )
             } else {
-                enrollmentClient.enroll(request).getOrThrow()
+                enrollmentClient.enroll(
+                    userUuid = uuid,
+                    factors = apiFactors,
+                    deviceId = deviceId,
+                    ttlSeconds = 86400,
+                    gdprConsent = session.consents.values.all { it }
+                ).getOrThrow()
             }
 
             Log.d(TAG, "API enrollment successful: alias=${response.alias}, factors=${response.enrolled_factors}")
@@ -594,12 +598,12 @@ class EnrollmentManager(
      */
     private suspend fun rollbackEnrollment(userId: String?) {
         if (userId == null) return
-        
+
         Log.w(TAG, "Rolling back enrollment for user: $userId")
-        
+
         try {
             // Delete from KeyStore
-            keyStoreManager.deleteEnrollment(userId)
+            keyStoreManager.deleteAllEnrollments(userId)
             
             // Delete from Redis
             redisCacheClient.deleteEnrollment(userId)

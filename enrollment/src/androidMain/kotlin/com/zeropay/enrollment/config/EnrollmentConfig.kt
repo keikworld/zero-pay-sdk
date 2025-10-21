@@ -246,9 +246,8 @@ object EnrollmentConfig {
         ),
         TERMS_OF_SERVICE(
             "I agree to ZeroPay Terms of Service and Privacy Policy"
-        )
+        ),
         GDPR_COMPLIANCE(
-            "GDPR Rights",
             "I understand my GDPR rights including right to erasure and data portability."
         )
     }
@@ -340,27 +339,27 @@ object EnrollmentConfig {
         
         return ValidationResult.Valid
     }
-    
-        /**
-         * Validation result
-         */
-        sealed class ValidationResult {
-            object Valid : ValidationResult()
-            data class Invalid(val message: String) : ValidationResult()
-        }
-        // ==================== ERROR MESSAGES ====================
-        
-        const val ERROR_MIN_FACTORS = "Please select at least $MIN_FACTORS factors"
-        const val ERROR_MIN_CATEGORIES = "Please select factors from at least $MIN_CATEGORIES_REQUIRED categories"
-        const val ERROR_SESSION_EXPIRED = "Session expired. Please start over."
-        const val ERROR_FACTOR_CAPTURE_FAILED = "Factor capture failed. Please try again."
-        const val ERROR_PAYMENT_LINK_FAILED = "Payment linking failed. Please try again."
-        const val ERROR_WEAK_PATTERN = "Pattern is too weak. Please choose a stronger pattern."
-        
-        // ==================== SUCCESS MESSAGES ====================
-        
-        const val SUCCESS_ENROLLMENT_COMPLETE = "Enrollment complete! You can now use ZeroPay."
-        const val SUCCESS_FACTOR_CAPTURED = "Factor captured successfully"
-        const val SUCCESS_PAYMENT_LINKED = "Payment provider linked successfully"
+
+    /**
+     * Validation result
+     */
+    sealed class ValidationResult {
+        object Valid : ValidationResult()
+        data class Invalid(val message: String) : ValidationResult()
     }
+
+    // ==================== ERROR MESSAGES ====================
+
+    const val ERROR_MIN_FACTORS = "Please select at least $MIN_FACTORS factors"
+    const val ERROR_MIN_CATEGORIES = "Please select factors from at least $MIN_CATEGORIES categories"
+    const val ERROR_SESSION_EXPIRED = "Session expired. Please start over."
+    const val ERROR_FACTOR_CAPTURE_FAILED = "Factor capture failed. Please try again."
+    const val ERROR_PAYMENT_LINK_FAILED = "Payment linking failed. Please try again."
+    const val ERROR_WEAK_PATTERN = "Pattern is too weak. Please choose a stronger pattern."
+
+    // ==================== SUCCESS MESSAGES ====================
+
+    const val SUCCESS_ENROLLMENT_COMPLETE = "Enrollment complete! You can now use ZeroPay."
+    const val SUCCESS_FACTOR_CAPTURED = "Factor captured successfully"
+    const val SUCCESS_PAYMENT_LINKED = "Payment provider linked successfully"
 }

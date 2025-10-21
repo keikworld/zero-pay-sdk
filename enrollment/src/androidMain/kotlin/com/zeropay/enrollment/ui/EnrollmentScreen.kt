@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -89,7 +90,8 @@ fun EnrollmentScreen(
     var isProcessing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showExitDialog by remember { mutableStateOf(false) }
-    
+
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
     // ==================== SESSION TIMEOUT ====================
@@ -146,9 +148,9 @@ fun EnrollmentScreen(
         try {
             // Build factor map for EnrollmentManager
             val factorMap = session.capturedFactors
-            
-            // Call EnrollmentManager.enroll
-            val result = enrollmentManager.enroll(factorMap)
+
+            // Call EnrollmentManager.enrollWithSession (requires Context)
+            val result = enrollmentManager.enrollWithSession(context, session)
             
             when (result) {
                 is EnrollmentResult.Success -> {

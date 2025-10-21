@@ -141,13 +141,14 @@ class PaymentProviderManager(
                         )
                     provider.generateHashedReference(uuid, email)
                 }
-                
-                EnrollmentConfig.PaymentLinkType.NFC -> {
-                    // NFC (future implementation)
-                    return@withContext Result.failure(
-                        Exception("NFC linking not yet implemented")
-                    )
-                }
+
+                // TODO: Add NFC support when PaymentLinkType.NFC is added
+                // EnrollmentConfig.PaymentLinkType.NFC -> {
+                //     // NFC (future implementation)
+                //     return@withContext Result.failure(
+                //         Exception("NFC linking not yet implemented")
+                //     )
+                // }
             }
             
             // Derive encryption key from UUID + factors

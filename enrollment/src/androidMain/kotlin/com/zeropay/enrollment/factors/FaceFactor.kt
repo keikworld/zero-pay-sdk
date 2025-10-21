@@ -1,3 +1,8 @@
+package com.zeropay.enrollment.factors
+
+import com.zeropay.sdk.security.CryptoUtils
+import java.util.Arrays
+
 /**
  * Face Factor - PRODUCTION VERSION
  * 

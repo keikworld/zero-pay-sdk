@@ -199,9 +199,9 @@ object VoiceFactor {
         // Add audio data (simplified - production would use MFCC or similar)
         features.addAll(audioData.toList())
         
-        // Add sample rate
-        features.addAll(CryptoUtils.intToBytes(sampleRate).toList())
-        
+        // Add sample rate (convert int to long)
+        features.addAll(CryptoUtils.longToBytes(sampleRate.toLong()).toList())
+
         // Add timestamp for uniqueness
         features.addAll(CryptoUtils.longToBytes(System.currentTimeMillis()).toList())
         
@@ -210,7 +210,7 @@ object VoiceFactor {
     
     // ==================== UI HELPERS ====================
     
-    fun getMinDurationMs(): Long = MIN_DURATION_MS
-    fun getMaxDurationMs(): Long = MAX_DURATION_MS
+    fun getMinDurationMs(): Long = MIN_DURATION_MS.toLong()
+    fun getMaxDurationMs(): Long = MAX_DURATION_MS.toLong()
     fun getRequiredSampleRate(): Int = SAMPLE_RATE
 }

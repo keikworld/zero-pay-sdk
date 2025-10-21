@@ -267,9 +267,11 @@ private fun FactorCanvas(
         Factor.COLOUR -> ColourEnrollmentCanvas(onDone, onCancel)
         Factor.EMOJI -> EmojiEnrollmentCanvas(onDone, onCancel)
         Factor.WORDS -> WordsEnrollmentCanvas(onDone, onCancel)
-        Factor.PIN -> PinEnrollmentCanvas(onDone, onCancel)
-        
-        // TODO: Add other factor canvases
+        Factor.BALANCE -> BalanceEnrollmentCanvas(onDone, onCancel)
+        Factor.VOICE -> VoiceEnrollmentCanvas(onDone, onCancel)
+
+        // TODO: Add other factor canvases (PIN, Pattern, Face, Fingerprint, etc.)
+        // Factor.PIN -> PinEnrollmentCanvas(onDone, onCancel)
         else -> {
             // Placeholder for factors not yet implemented
             Box(

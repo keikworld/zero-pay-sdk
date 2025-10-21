@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.zeropay.sdk.CsprngShuffle
 import com.zeropay.enrollment.factors.ColourFactor
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Colour Enrollment Canvas - PRODUCTION VERSION
@@ -59,8 +60,10 @@ fun ColourEnrollmentCanvas(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scope = rememberCoroutineScope()
+
     // ==================== STATE MANAGEMENT ====================
-    
+
     // Shuffle trigger - change to re-shuffle colors
     var shuffleTrigger by remember { mutableStateOf(0) }
     
@@ -364,7 +367,7 @@ fun ColourEnrollmentCanvas(
                 // Submit Button
                 Button(
                     onClick = {
-                        kotlinx.coroutines.MainScope().launch {
+                        scope.launch {
                             handleSubmit()
                         }
                     },

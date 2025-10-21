@@ -9,7 +9,21 @@
       "Bash(cmd.exe /c \"gradlew.bat :sdk:compileDebugUnitTestKotlinAndroid --no-daemon 2>&1\")",
       "Bash(perl -i -pe 's/(listOf\\([0-9L, ]+\\))(?! *\\.map)/$1.map { RhythmTapFactor.RhythmTap(it) }/g' sdk/src/test/kotlin/com/zeropay/sdk/factors/RhythmTapFactorTest.kt)",
       "Bash(cmd.exe /c \"gradlew.bat :enrollment:compileDebugKotlinAndroid --no-daemon 2>&1\")",
-      "Bash(cmd.exe /c \"gradlew.bat :merchant:compileDebugKotlinAndroid --no-daemon 2>&1\")"
+      "Bash(cmd.exe /c \"gradlew.bat :merchant:compileDebugKotlinAndroid --no-daemon 2>&1\")",
+      "Bash(cmd.exe /c \"gradlew.bat :enrollment:build --no-daemon 2>&1\")",
+      "Bash(cmd.exe /c \"gradlew.bat :enrollment:build --no-daemon 2>&1 | head -100\")",
+      "Bash(for file in /mnt/c/Users/USUARIO/StudioProjects/zero-pay-sdk/zeropay-android/enrollment/src/androidMain/kotlin/com/zeropay/enrollment/factors/*.kt)",
+      "Bash(do)",
+      "Bash(if ! grep -q \"^package \" \"$file\")",
+      "Bash(then)",
+      "Bash(elif ! grep -q \"import com.zeropay.sdk.security.CryptoUtils\" \"$file\")",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(cmd.exe /c \"gradlew.bat :enrollment:compileDebugKotlinAndroid --no-daemon 2>&1 | grep -A 2 ''^e:''\")",
+      "Bash(for file in /mnt/c/Users/USUARIO/StudioProjects/zero-pay-sdk/zeropay-android/enrollment/src/androidMain/kotlin/com/zeropay/enrollment/payment/PaymentProviderManager.kt /mnt/c/Users/USUARIO/StudioProjects/zero-pay-sdk/zeropay-android/enrollment/src/androidMain/kotlin/com/zeropay/enrollment/ui/steps/PaymentLinkingStep.kt)",
+      "Bash(if ! grep -q \"import com.zeropay.sdk.Factor\" \"$file\")",
+      "Bash(cmd.exe /c \"gradlew.bat :enrollment:clean --no-daemon 2>&1\")",
+      "Bash(cmd.exe /c \"gradlew.bat :enrollment:compileDebugKotlinAndroid --no-daemon 2>&1 | head -200\")"
     ],
     "deny": [],
     "ask": []
