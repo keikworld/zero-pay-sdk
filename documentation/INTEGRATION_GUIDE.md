@@ -762,9 +762,9 @@ openssl s_client -connect api.zeropay.com:443 \
 
 For additional help:
 
-- **Documentation:** [README.md](./README.md)
+- **Documentation:** [README.md](../README.md)
 - **Code Examples:** [DEMO_SCRIPT.md](./DEMO_SCRIPT.md)
-- **Architecture:** [CLAUDE.md](./CLAUDE.md)
+- **Architecture:** [CLAUDE.md](../CLAUDE.md)
 - **Issues:** [GitHub Issues](https://github.com/your-org/zeropay-android/issues)
 
 ---

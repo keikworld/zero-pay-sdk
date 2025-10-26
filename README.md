@@ -564,7 +564,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Documentation
 
 - [Implementation Plan](./ZEROPAY_IMPLEMENTATION_PLAN_v2.md) - 30-day development roadmap
-- [Development Guide](./development_guide.md) - Architecture and patterns
+- [Development Guide](documentation/development_guide.md) - Architecture and patterns
 - [Demo Script](./DEMO_SCRIPT.md) - End-to-end demonstration
 - [Claude Code Guide](./CLAUDE.md) - AI assistant instructions
 
