@@ -21,9 +21,6 @@ import org.junit.Assert.assertNull
  * This test now has access to AlertPriority, DeliveryMethod, MerchantAlertConfig,
  * and MerchantAlertService from the commonMain source set.
  *
- * NOTE: Tests are currently @Ignore'd because MerchantAlertService implementation is pending.
- * Remove @Ignore once the service is fully implemented in commonMain.
- *
  * Test Coverage:
  * - Alert delivery (webhook, database)
  * - Alert history tracking
@@ -34,7 +31,6 @@ import org.junit.Assert.assertNull
  * - Webhook payload validation
  * - Error handling
  */
-@Ignore("MerchantAlertService implementation pending - uncomment when service is implemented")
 class MerchantAlertServiceTest {
 
     private lateinit var alertService: MerchantAlertService
@@ -120,7 +116,7 @@ class MerchantAlertServiceTest {
     // ==================== ALERT HISTORY TESTS ====================
 
     @Test
-    fun testalert history is recorded() = runBlocking {
+    fun testAlertHistoryIsRecorded() = runBlocking {
         val merchant1Alert = testAlert.copy(userId = "user-001")
         val merchant2Alert = testAlert.copy(userId = "user-002")
 
@@ -138,7 +134,7 @@ class MerchantAlertServiceTest {
     }
 
     @Test
-    fun testalert history respects max size() = runBlocking {
+    fun testAlertHistoryRespectsMaxSize() = runBlocking {
         val config = MerchantAlertConfig(maxHistorySize = 5)
         val service = MerchantAlertService(config)
 
@@ -162,7 +158,7 @@ class MerchantAlertServiceTest {
     // ==================== PENDING ALERTS TESTS ====================
 
     @Test
-    fun testpending alerts are queued() = runBlocking {
+    fun testPendingAlertsAreQueued() = runBlocking {
         // Send multiple alerts
         alertService.sendAlert("merchant-123", testAlert, AlertPriority.NORMAL)
         alertService.sendAlert("merchant-123", testAlert.copy(userId = "user-456"), AlertPriority.HIGH)
@@ -174,7 +170,7 @@ class MerchantAlertServiceTest {
     }
 
     @Test
-    fun testsuccessful delivery removes from queue() = runBlocking {
+    fun testSuccessfulDeliveryRemovesFromQueue() = runBlocking {
         val result = alertService.sendAlert("merchant-123", testAlert, AlertPriority.LOW)
 
         // With simulation, delivery succeeds
@@ -188,7 +184,7 @@ class MerchantAlertServiceTest {
     // ==================== ALERT PRIORITY TESTS ====================
 
     @Test
-    fun testdifferent priority levels() = runBlocking {
+    fun testDifferentPriorityLevels() = runBlocking {
         val lowResult = alertService.sendAlert(
             "merchant-123",
             testAlert.copy(severity = AntiTampering.Severity.LOW),
@@ -228,7 +224,7 @@ class MerchantAlertServiceTest {
     // ==================== ALERT TYPE TESTS ====================
 
     @Test
-    fun testdifferent alert types() = runBlocking {
+    fun testDifferentAlertTypes() = runBlocking {
         val securityThreat = testAlert.copy(
             alertType = SecurityPolicy.AlertType.SECURITY_THREAT_DETECTED
         )
@@ -259,7 +255,7 @@ class MerchantAlertServiceTest {
     // ==================== CONFIG TESTS ====================
 
     @Test
-    fun `testCustom configuration`() {
+    fun testCustomConfiguration() {
         val customConfig = MerchantAlertConfig(
             maxWebhookRetries = 5,
             webhookRetryDelayMs = 2000L,
@@ -268,7 +264,7 @@ class MerchantAlertServiceTest {
         )
 
         val service = MerchantAlertService(customConfig)
-        val config = service.getMetricsOrConfig() // If you add a getConfig method
+        // val config = service.getMetricsOrConfig() // Method not yet implemented
 
         assertNotNull(customConfig.getWebhookUrl("test-merchant"))
         assertNull(customConfig.getWebhookUrl("unknown-merchant"))
@@ -277,7 +273,7 @@ class MerchantAlertServiceTest {
     // ==================== WEBHOOK PAYLOAD TESTS ====================
 
     @Test
-    fun testwebhook payload contains required fields() = runBlocking {
+    fun testWebhookPayloadContainsRequiredFields() = runBlocking {
         // This would require exposing the buildWebhookPayload method
         // or capturing the actual HTTP call
         // For now, we'll just verify the alert structure
@@ -293,7 +289,7 @@ class MerchantAlertServiceTest {
     // ==================== ERROR HANDLING TESTS ====================
 
     @Test
-    fun testalert service handles errors gracefully() = runBlocking {
+    fun testAlertServiceHandlesErrorsGracefully() = runBlocking {
         // Test with null/invalid data
         val invalidAlert = SecurityPolicy.MerchantAlert(
             alertType = SecurityPolicy.AlertType.SECURITY_THREAT_DETECTED,
@@ -312,7 +308,7 @@ class MerchantAlertServiceTest {
     }
 
     @Test
-    fun testmultiple merchants can receive alerts independently() = runBlocking {
+    fun testMultipleMerchantsCanReceiveAlertsIndependently() = runBlocking {
         val merchant1Alert = testAlert.copy(userId = "user-001")
         val merchant2Alert = testAlert.copy(userId = "user-002")
         val merchant3Alert = testAlert.copy(userId = "user-003")
@@ -333,5 +329,4 @@ class MerchantAlertServiceTest {
         assertEquals("user-002", history2[0].alert.userId)
         assertEquals("user-003", history3[0].alert.userId)
     }
-    */
 }

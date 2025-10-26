@@ -1855,7 +1855,7 @@
                                 onClick={() => handleWordClick(word)}
                                 style={{ opacity: isComplete ? 0.5 : 1, cursor: isComplete ? 'default' : 'pointer' }}
                             >
-                                {word.toUpperCase()}
+                                {word.toUpperCase()}{selectedWords.includes(word) ? ` ${String.fromCharCode(0x2460 + selectedWords.indexOf(word))}` : ''}
                             </div>
                         ))}
                     </div>
@@ -1906,13 +1906,23 @@
                             <div
                                 key={color}
                                 className={`color-box ${selectedColors.includes(color) ? 'selected' : ''}`}
-                                style={{ 
+                                style={{
                                     backgroundColor: color,
                                     opacity: isComplete ? 0.5 : 1,
-                                    cursor: isComplete ? 'default' : 'pointer'
+                                    cursor: isComplete ? 'default' : 'pointer',
+                                    position: 'relative',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '24px',
+                                    fontWeight: 'bold',
+                                    color: '#fff',
+                                    textShadow: '0 0 3px rgba(0,0,0,0.8)'
                                 }}
                                 onClick={() => handleColorClick(color)}
-                            />
+                            >
+                                {selectedColors.includes(color) ? String.fromCharCode(0x2460 + selectedColors.indexOf(color)) : ''}
+                            </div>
                         ))}
                     </div>
                     <div className="info-text">
@@ -1966,7 +1976,7 @@
                                 onClick={() => handleEmojiClick(emoji)}
                                 style={{ opacity: isComplete ? 0.5 : 1, cursor: isComplete ? 'default' : 'pointer' }}
                             >
-                                {emoji}
+                                {emoji}{selectedEmojis.includes(emoji) ? ` ${String.fromCharCode(0x2460 + selectedEmojis.indexOf(emoji))}` : ''}
                             </div>
                         ))}
                     </div>
@@ -2262,7 +2272,7 @@
                     <div className="loading-content">
                         <div className="loading-icon"><img src={PAYMENT_GATEWAY_LOGOS[gateway.id]} alt={gateway.name} style={{maxWidth: '100%', maxHeight: '100%', objectFit: 'contain'}} /></div>
                         <div className="loading-text">Connecting to {gateway.name}</div>
-                        <div className="loading-subtext">Authenticating your account...</div>
+                        <div className="loading-subtext">{gateway.id === 'phantom' ? 'Authenticating wallet n6z2...ysBp' : 'Authenticating your account...'}</div>
                         <div className="loading-spinner">
                             <div className="loading-spinner-fill"></div>
                         </div>
@@ -2282,10 +2292,10 @@
 
             return (
                 <div className="card">
-                    <div className="card-title">In-Store POS Terminal</div>
+                    <div className="card-title">In-Store mPOS Terminal</div>
                     
                     <div className="mock-pos">
-                        <div className="pos-header">COFFEE SHOP POS</div>
+                        <div className="pos-header">COFFEE SHOP mPOS</div>
                         <div className="pos-row">
                             <span>Item:</span>
                             <span>Cappuccino x2</span>
@@ -2448,7 +2458,7 @@
                     setError(null);
                     
                     const allFactorIds = Object.keys(data.factors);
-                    const factorCount = Math.random() < 0.5 ? 2 : 3;
+                    const factorCount = Math.random() < 0.5 ? 2 : 3;  // Randomly start with 2 or 3 factors
                     const selectedFactors = shuffleArray(allFactorIds).slice(0, Math.min(factorCount, allFactorIds.length));
                     
                     console.log('🎲 Challenge factors:', selectedFactors);
@@ -2487,23 +2497,31 @@
                     setFailCount(newFailCount);
 
                     if (newFailCount >= 3) {
-                        setError('🚫 TOO MANY FAILED ATTEMPTS. ACCOUNT BLOCKED.');
+                        setError('🚫 You have failed authentication. Account will be blocked for 15 min. Try later.');
                         setIsBlocked(true);
                         setTimeout(() => {
                             setStage('uuid');
                             resetState();
-                        }, 4000);
+                        }, 10000);  // 10 seconds wait before returning to home
                         return;
                     }
 
-                    setError(`❌ Authentication failed for ${factorId}. Attempt ${newFailCount}/3. Trying different factor...`);
-                    
+                    setError(`❌ Authentication failed for ${factorId}. Attempt ${newFailCount}/3. ${newFailCount === 1 ? 'Adding additional factor...' : 'Trying different factor...'}`);
+
                     setTimeout(() => {
-                        const remainingFactors = challengeFactors.filter((_, idx) => idx !== currentFactorIndex);
-                        if (remainingFactors.length > 0) {
-                            const newFactorIndex = Math.floor(Math.random() * remainingFactors.length);
+                        const allFactorIds = Object.keys(enrollmentData.factors);
+                        const unusedFactors = allFactorIds.filter(id => !challengeFactors.includes(id));
+
+                        if (newFailCount === 1 && unusedFactors.length > 0) {
+                            // First failure: Add a 4th factor
+                            const newFactor = unusedFactors[Math.floor(Math.random() * unusedFactors.length)];
+                            setChallengeFactors([...challengeFactors, newFactor]);
+                            setError(null);
+                        } else if (unusedFactors.length > 0) {
+                            // Subsequent failures: Replace failed factor with new one
+                            const newFactor = unusedFactors[Math.floor(Math.random() * unusedFactors.length)];
                             const newChallengeFactors = [...challengeFactors];
-                            newChallengeFactors[currentFactorIndex] = remainingFactors[newFactorIndex];
+                            newChallengeFactors[currentFactorIndex] = newFactor;
                             setChallengeFactors(newChallengeFactors);
                             setError(null);
                         } else {
@@ -2567,7 +2585,7 @@
                             <div style={{ display: 'flex', gap: '10px' }}>
                                 {onBack && (
                                     <button className="btn btn-secondary" onClick={onBack}>
-                                        ← Back to POS
+                                        ← Back to mPOS
                                     </button>
                                 )}
                                 <button 

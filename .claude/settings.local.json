@@ -20,7 +20,9 @@
       "Bash(cmd.exe /c 'set \"\"JAVA_HOME=C:\\Program Files\\Java\\jre1.8.0_461\"\" && gradlew.bat :enrollment:compileDebugKotlinAndroid --console=plain --no-daemon')",
       "Bash(cmd.exe /c 'set \"\"JAVA_HOME=C:\\Program Files\\Java\\jre1.8.0_461\"\" && gradlew.bat :enrollment:compileDebugKotlinAndroid --console=plain --no-daemon 2>&1')",
       "Bash(cmd.exe /c 'set \"\"JAVA_HOME=C:\\Program Files\\Java\\jre1.8.0_461\"\" && gradlew.bat :merchant:compileDebugKotlinAndroid --console=plain --no-daemon 2>&1')",
-      "Bash(cmd.exe /c:*)"
+      "Bash(cmd.exe /c:*)",
+      "Bash(find:*)",
+      "Bash(merchant/src/androidInstrumentedTest/kotlin/com/zeropay/merchant/alerts/MerchantAlertServiceTest.kt)"
     ],
     "deny": [],
     "ask": []
