@@ -1,11 +1,8 @@
 package com.zeropay.merchant.alerts
 
-import android.util.Log
 import com.zeropay.sdk.security.SecurityPolicy
 import kotlinx.coroutines.*
-import java.time.Instant
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
+import kotlin.random.Random
 
 /**
  * Merchant Alert Service
@@ -29,12 +26,31 @@ class MerchantAlertService(
 
     companion object {
         private const val TAG = "MerchantAlertService"
+
+        // Simple UUID generator for KMP
+        private fun generateUUID(): String {
+            val chars = "0123456789abcdef"
+            return buildString {
+                repeat(32) {
+                    append(chars[Random.nextInt(chars.length)])
+                    if (length == 8 || length == 13 || length == 18 || length == 23) {
+                        append('-')
+                    }
+                }
+            }
+        }
+
+        // Simple logging for KMP (replace with actual logger in production)
+        private fun log(level: String, message: String, error: Throwable? = null) {
+            println("[$level] $TAG: $message")
+            error?.let { println("  Error: ${it.message}") }
+        }
     }
 
-    // Alert queue for offline scenarios
-    private val alertQueue = ConcurrentHashMap<String, QueuedAlert>()
+    // Alert queue for offline scenarios (thread-safe via synchronized access)
+    private val alertQueue = mutableMapOf<String, QueuedAlert>()
 
-    // Alert history
+    // Alert history (thread-safe via synchronized access)
     private val alertHistory = mutableListOf<AlertRecord>()
 
     /**
@@ -50,9 +66,9 @@ class MerchantAlertService(
         priority: AlertPriority = AlertPriority.NORMAL
     ): AlertResult = withContext(Dispatchers.IO) {
         try {
-            Log.i(TAG, "Sending alert to merchant $merchantId: ${alert.alertType}")
+            log("INFO", "Sending alert to merchant $merchantId: ${alert.alertType}")
 
-            val alertId = UUID.randomUUID().toString()
+            val alertId = generateUUID()
             val queuedAlert = QueuedAlert(
                 id = alertId,
                 merchantId = merchantId,
@@ -96,7 +112,7 @@ class MerchantAlertService(
             result
 
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send alert: ${e.message}", e)
+            log("ERROR", "Failed to send alert: ${e.message}", e)
             AlertResult(
                 success = false,
                 message = "Alert delivery failed: ${e.message}",
@@ -114,7 +130,7 @@ class MerchantAlertService(
         alert: SecurityPolicy.MerchantAlert,
         alertId: String
     ): AlertResult = coroutineScope {
-        Log.w(TAG, "CRITICAL alert for merchant $merchantId")
+        log("WARN", "CRITICAL alert for merchant $merchantId")
 
         // Try all delivery methods in parallel
         val webhookDeferred = async { deliverViaWebhook(merchantId, alert, alertId) }
@@ -154,7 +170,7 @@ class MerchantAlertService(
         }
 
         // Fallback to database
-        Log.w(TAG, "Webhook failed for high-priority alert, using database fallback")
+        log("WARN", "Webhook failed for high-priority alert, using database fallback")
         return deliverViaDatabase(merchantId, alert, alertId)
     }
 
@@ -194,7 +210,7 @@ class MerchantAlertService(
             // Get merchant webhook URL from configuration
             val webhookUrl = config.getWebhookUrl(merchantId)
             if (webhookUrl == null) {
-                Log.w(TAG, "No webhook configured for merchant $merchantId")
+                log("WARN", "No webhook configured for merchant $merchantId")
                 return@withContext AlertResult(
                     success = false,
                     message = "No webhook configured",
@@ -203,7 +219,7 @@ class MerchantAlertService(
                 )
             }
 
-            Log.d(TAG, "Delivering alert via webhook: $webhookUrl")
+            log("DEBUG", "Delivering alert via webhook: $webhookUrl")
 
             // Build webhook payload
             val payload = buildWebhookPayload(merchantId, alert, alertId)
@@ -226,7 +242,7 @@ class MerchantAlertService(
                     // Placeholder simulation
                     val success = simulateWebhookCall(webhookUrl, payload)
                     if (success) {
-                        Log.i(TAG, "Webhook delivery successful on attempt ${attempt + 1}")
+                        log("INFO", "Webhook delivery successful on attempt ${attempt + 1}")
                         return@withContext AlertResult(
                             success = true,
                             message = "Alert delivered via webhook",
@@ -236,7 +252,7 @@ class MerchantAlertService(
                     }
                 } catch (e: Exception) {
                     lastError = e
-                    Log.w(TAG, "Webhook attempt ${attempt + 1} failed: ${e.message}")
+                    log("WARN", "Webhook attempt ${attempt + 1} failed: ${e.message}")
 
                     // Exponential backoff
                     if (attempt < config.maxWebhookRetries - 1) {
@@ -254,7 +270,7 @@ class MerchantAlertService(
             )
 
         } catch (e: Exception) {
-            Log.e(TAG, "Webhook delivery error: ${e.message}", e)
+            log("ERROR", "Webhook delivery error: ${e.message}", e)
             AlertResult(
                 success = false,
                 message = "Webhook error: ${e.message}",
@@ -276,7 +292,7 @@ class MerchantAlertService(
             // TODO: Implement WebSocket delivery
             // This would require a persistent WebSocket connection to merchant dashboard
 
-            Log.d(TAG, "WebSocket delivery not yet implemented")
+            log("DEBUG", "WebSocket delivery not yet implemented")
 
             AlertResult(
                 success = false,
@@ -286,7 +302,7 @@ class MerchantAlertService(
             )
 
         } catch (e: Exception) {
-            Log.e(TAG, "WebSocket delivery error: ${e.message}", e)
+            log("ERROR", "WebSocket delivery error: ${e.message}", e)
             AlertResult(
                 success = false,
                 message = "WebSocket error: ${e.message}",
@@ -305,7 +321,7 @@ class MerchantAlertService(
         alertId: String
     ): AlertResult = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Storing alert in database for merchant $merchantId")
+            log("DEBUG", "Storing alert in database for merchant $merchantId")
 
             // TODO: Implement database storage
             // Example using Room or direct database access:
@@ -327,7 +343,7 @@ class MerchantAlertService(
             val success = simulateDatabaseInsert(merchantId, alert, alertId)
 
             if (success) {
-                Log.i(TAG, "Alert stored in database successfully")
+                log("INFO", "Alert stored in database successfully")
                 AlertResult(
                     success = true,
                     message = "Alert stored in database",
@@ -344,7 +360,7 @@ class MerchantAlertService(
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Database delivery error: ${e.message}", e)
+            log("ERROR", "Database delivery error: ${e.message}", e)
             AlertResult(
                 success = false,
                 message = "Database error: ${e.message}",
@@ -444,7 +460,7 @@ class MerchantAlertService(
      */
     private fun simulateWebhookCall(url: String, payload: Map<String, Any>): Boolean {
         // TODO: Replace with actual HTTP POST
-        Log.d(TAG, "Simulating webhook POST to $url with payload: $payload")
+        log("DEBUG", "Simulating webhook POST to $url with payload: $payload")
         return true // Simulate success
     }
 
@@ -457,7 +473,7 @@ class MerchantAlertService(
         alertId: String
     ): Boolean {
         // TODO: Replace with actual database insert
-        Log.d(TAG, "Simulating database insert for alert $alertId")
+        log("DEBUG", "Simulating database insert for alert $alertId")
         return true // Simulate success
     }
 }

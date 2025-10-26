@@ -146,9 +146,6 @@ fun EnrollmentScreen(
         errorMessage = null
         
         try {
-            // Build factor map for EnrollmentManager
-            val factorMap = session.capturedFactors
-
             // Call EnrollmentManager.enrollWithSession (requires Context)
             val result = enrollmentManager.enrollWithSession(context, session)
             
@@ -214,7 +211,7 @@ fun EnrollmentScreen(
                 AnimatedContent(
                     targetState = session.currentStep,
                     transitionSpec = {
-                        slideInHorizontally { width -> width } + fadeIn() with
+                        slideInHorizontally { width -> width } + fadeIn() togetherWith
                         slideOutHorizontally { width -> -width } + fadeOut()
                     }
                 ) { step ->

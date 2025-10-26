@@ -39,16 +39,17 @@ actual object CryptoUtils {
     // ==================== HASHING ====================
     
     actual fun sha256(data: ByteArray): ByteArray {
-        require(data.isNotEmpty()) { "Cannot hash empty data" }
-        
+        // SHA-256 can hash empty input - it's a valid operation
+        // The hash of empty input is: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
         val digest = sha256Digest.get()!!
         digest.reset()
         val hash = digest.digest(data)
-        
+
         require(hash.size == SHA_256_DIGEST_SIZE) {
             "SHA-256 digest size mismatch: expected $SHA_256_DIGEST_SIZE, got ${hash.size}"
         }
-        
+
         return hash
     }
     
@@ -58,7 +59,8 @@ actual object CryptoUtils {
     
     actual fun multiHash(dataList: List<ByteArray>): ByteArray {
         require(dataList.isNotEmpty()) { "Cannot hash empty list" }
-        
+
+        // Concatenate all byte arrays (even if some are empty)
         val combined = dataList.reduce { acc, bytes -> acc + bytes }
         return sha256(combined)
     }
@@ -165,7 +167,7 @@ actual object CryptoUtils {
 
     actual fun hmacSha256(key: ByteArray, data: ByteArray): ByteArray {
         require(key.isNotEmpty()) { "HMAC key cannot be empty" }
-        require(data.isNotEmpty()) { "HMAC data cannot be empty" }
+        // HMAC can process empty data - it's valid
 
         val mac = javax.crypto.Mac.getInstance("HmacSHA256")
         val secretKey = javax.crypto.spec.SecretKeySpec(key, "HmacSHA256")

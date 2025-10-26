@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import com.zeropay.enrollment.factors.BiometricFactor
+import com.zeropay.enrollment.factors.FingerprintFactor
 import kotlinx.coroutines.launch
 
 /**

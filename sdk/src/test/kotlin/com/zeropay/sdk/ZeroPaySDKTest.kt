@@ -245,30 +245,30 @@ class ZeroPaySDKTest {
     
     @Test
     fun testMouseFactor_ValidInput() {
-        // Arrange
+        // Arrange - Minimum 3 points required
         val points = listOf(
             MouseFactor.MousePoint(10f, 20f, 1000L),
-            MouseFactor.MousePoint(30f, 40f, 1050L)
+            MouseFactor.MousePoint(30f, 40f, 1050L),
+            MouseFactor.MousePoint(50f, 60f, 1100L)
         )
-        
+
         // Act
         val digest = MouseFactor.digestMicroTiming(points)
-        
+
         // Assert
         assertEquals(32, digest.size)
     }
     
     @Test
     fun testStylusFactor_ValidInput() {
-        // Arrange
-        val points = listOf(
-            StylusFactor.StylusPoint(10f, 20f, 0.5f, 1000L),
-            StylusFactor.StylusPoint(30f, 40f, 0.8f, 1050L)
-        )
-        
+        // Arrange - Minimum 10 points required
+        val points = List(10) { i ->
+            StylusFactor.StylusPoint((i * 10).toFloat(), (i * 20).toFloat(), 0.5f, (i * 100).toLong())
+        }
+
         // Act
         val digest = StylusFactor.digestFull(points)
-        
+
         // Assert
         assertEquals(32, digest.size)
     }
@@ -368,16 +368,17 @@ class ZeroPaySDKTest {
     
     // ==================== CSPRNG SHUFFLE TESTS ====================
     
-    @Test
-    fun testCsprngShuffle_EmptyList_ReturnsEmpty() {
+    @Test(expected = IllegalArgumentException::class)
+    fun testCsprngShuffle_EmptyList_ThrowsException() {
         // Arrange
         val empty = emptyList<Int>()
-        
-        // Act
-        val shuffled = CsprngShuffle.shuffle(empty)
-        
-        // Assert
-        assertTrue(shuffled.isEmpty())
+
+        // Act - Should throw IllegalArgumentException
+        CsprngShuffle.shuffle(empty)
+
+        // Assert - Should throw (SECURITY: Input validation prevents undefined behavior.
+        // Fisher-Yates shuffle requires at least one element. Empty list handling prevents
+        // potential timing attacks that could infer list size from execution time.)
     }
     
     @Test

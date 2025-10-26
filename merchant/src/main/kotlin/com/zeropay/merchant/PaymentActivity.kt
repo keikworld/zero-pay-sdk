@@ -3,6 +3,7 @@
 package com.zeropay.merchant
 
 import android.os.Bundle
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
@@ -65,11 +66,12 @@ class PaymentActivity : ComponentActivity() {
             registerGateway(AdyenGateway(tokenStorage))
             registerGateway(MercadoPagoGateway(tokenStorage))
             
-            // ==================== Hashed Reference Gateways (8) ====================
+            // ==================== Hashed Reference Gateways (7) ====================
             registerGateway(PayUGateway(tokenStorage))
             registerGateway(YappyGateway(tokenStorage))
             registerGateway(NequiGateway(tokenStorage))
-            registerGateway(TilopayGateway(tokenStorage))
+            // TODO: Add TilopayGateway when implemented
+            // registerGateway(TilopayGateway(tokenStorage))
             registerGateway(AlipayGateway(tokenStorage))
             registerGateway(WeChatPayGateway(tokenStorage))
             registerGateway(WorldpayGateway(tokenStorage))
@@ -386,6 +388,7 @@ fun PaymentScreen(
  * @param isSelected Whether this gateway is selected
  * @param onClick Click handler
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GatewayCard(
     gateway: GatewayProvider,

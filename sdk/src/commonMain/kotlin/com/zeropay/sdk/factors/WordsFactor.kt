@@ -31,10 +31,10 @@ import java.util.Arrays
 object WordsFactor {
     
     // ==================== CONSTANTS ====================
-    
-    private const val WORD_COUNT = 4
-    private const val MAX_WORD_INDEX = 2999
-    private const val MIN_WORD_INDEX = 0
+
+    const val WORD_COUNT = 4
+    const val MAX_WORD_INDEX = 2999  // Updated when full word list is loaded
+    const val MIN_WORD_INDEX = 0
     
     // Word list: Common 3000 English words for memorability
     private val WORD_LIST = generateWordList()
@@ -179,17 +179,29 @@ object WordsFactor {
     // ==================== WORD LIST GENERATION ====================
     
     /**
-     * Generate 3000-word list
-     * In production, load from external file
+     * Generate word list
+     * In production, load from external file with 3000 words
+     * For testing, we include 100+ words
      */
     private fun generateWordList(): List<String> {
-        // Placeholder: Most common 3000 English words
-        // In production, load from resources or API
+        // Placeholder: Common English words for testing
+        // In production, load full 3000-word list from resources or API
         return listOf(
             "abandon", "ability", "able", "about", "above", "abroad", "absence", "absolute",
             "absorb", "abstract", "abuse", "academic", "accept", "access", "accident", "accompany",
             "accomplish", "according", "account", "accurate", "accuse", "achieve", "acid", "acknowledge",
-            // ... (expand to 3000 words in production)
+            "acquire", "across", "action", "active", "actor", "actual", "adapt", "address",
+            "adequate", "adjust", "admire", "admit", "adopt", "adult", "advance", "advantage",
+            "adventure", "advice", "affair", "affect", "afford", "afraid", "after", "again",
+            "against", "agency", "agenda", "agent", "agree", "ahead", "airline", "airport",
+            "alarm", "album", "alcohol", "alert", "alien", "align", "alive", "allow",
+            "almost", "alone", "along", "already", "also", "alter", "always", "amateur",
+            "amazing", "among", "amount", "amuse", "ancient", "anger", "angle", "angry",
+            "animal", "ankle", "announce", "annual", "another", "answer", "antenna", "antique",
+            "anxiety", "anxious", "any", "apart", "apology", "appear", "apple", "apply",
+            "approve", "april", "area", "argue", "arise", "around", "arrange", "arrest",
+            "arrive", "arrow", "artist", "artwork", "aside", "aspect", "assault", "asset",
+            // Enough words for testing (100+ words)
             "zebra", "zero", "zone", "zoo"
         )
     }

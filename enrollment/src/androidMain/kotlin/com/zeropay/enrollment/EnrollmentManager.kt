@@ -223,8 +223,8 @@ class EnrollmentManager(
             }
             
             // ========== STEP 5: UUID GENERATION ==========
-            
-            val uuid = session.userId!!
+
+            val uuid = session.userId
             val alias = AliasGenerator.generateAlias(uuid)
             
             if (!UUIDManager.validateUUID(uuid) || !AliasGenerator.isValidAlias(alias)) {

@@ -164,8 +164,13 @@ fun VoiceEnrollmentCanvas(
             // Create temp file
             audioFile = File.createTempFile("voice_", ".m4a", context.cacheDir)
 
-            // Initialize MediaRecorder
-            mediaRecorder = MediaRecorder().apply {
+            // Initialize MediaRecorder (use context for API 31+)
+            mediaRecorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                MediaRecorder(context)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }.apply {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)

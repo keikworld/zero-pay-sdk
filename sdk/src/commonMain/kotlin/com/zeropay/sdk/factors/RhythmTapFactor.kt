@@ -44,48 +44,48 @@ import kotlin.math.min
 object RhythmTapFactor {
     
     // ==================== CONSTANTS ====================
-    
+
     /**
      * Minimum number of taps required
      * Too few taps = low entropy
      */
-    private const val MIN_TAPS = 4
-    
+    const val MIN_TAPS = 4
+
     /**
      * Maximum number of taps allowed
      * Too many taps = poor UX, potential DoS
      */
-    private const val MAX_TAPS = 6
-    
+    const val MAX_TAPS = 6
+
     /**
      * Maximum input timeout (milliseconds)
      * Prevents indefinite waiting
      */
-    private const val INPUT_TIMEOUT_MS = 15_000L // 15 seconds
-    
+    const val INPUT_TIMEOUT_MS = 15_000L // 15 seconds
+
     /**
      * Normalization scale for intervals (milliseconds)
      * All intervals scaled to 0-1000ms range
      */
-    private const val INTERVAL_NORMALIZE_MAX = 1000L
-    
+    const val INTERVAL_NORMALIZE_MAX = 1000L
+
     /**
      * Minimum interval between taps (milliseconds)
      * Prevents accidental double-taps
      */
-    private const val MIN_INTERVAL_MS = 50L
-    
+    const val MIN_INTERVAL_MS = 50L
+
     /**
      * Maximum interval between taps (milliseconds)
      * Prevents excessively long pauses
      */
-    private const val MAX_INTERVAL_MS = 3000L
-    
+    const val MAX_INTERVAL_MS = 3000L
+
     /**
      * Minimum variance required in intervals
      * Prevents trivial rhythms like "tap-tap-tap-tap" (all equal)
      */
-    private const val MIN_VARIANCE_THRESHOLD = 0.05f
+    const val MIN_VARIANCE_THRESHOLD = 0.05f
     
     // ==================== DATA CLASSES ====================
     

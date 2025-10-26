@@ -39,11 +39,16 @@ class VoiceFactorTest {
     fun testDigest_Deterministic_SameAudioProducesSameDigest() {
         // Arrange
         val audioData = generateSimulatedAudio(100_000)
-        
+
+        // SECURITY NOTE: Using fixed salt and timestamp for test determinism.
+        // In production, digest() uses random salt + current timestamp for replay protection (default).
+        val fixedSalt = ByteArray(16) { 0 }
+        val fixedTimestamp = 0L
+
         // Act
-        val digest1 = VoiceFactor.digest(audioData.copyOf())
-        val digest2 = VoiceFactor.digest(audioData.copyOf())
-        
+        val digest1 = VoiceFactor.digestWithSalt(audioData.copyOf(), fixedSalt, fixedTimestamp)
+        val digest2 = VoiceFactor.digestWithSalt(audioData.copyOf(), fixedSalt, fixedTimestamp)
+
         // Assert
         assertArrayEquals("Same audio should produce same digest", digest1, digest2)
     }
@@ -71,11 +76,17 @@ class VoiceFactorTest {
     fun testVerify_MatchingAudio_ReturnsTrue() {
         // Arrange
         val audioData = generateSimulatedAudio(100_000)
-        val digest = VoiceFactor.digest(audioData.copyOf())
-        
-        // Act
-        val result = VoiceFactor.verify(audioData.copyOf(), digest)
-        
+
+        // SECURITY NOTE: Using fixed salt and timestamp for test determinism.
+        // In production, digest() uses random salt + current timestamp for replay protection (default).
+        val fixedSalt = ByteArray(16) { 0 }
+        val fixedTimestamp = 0L
+        val digest = VoiceFactor.digestWithSalt(audioData.copyOf(), fixedSalt, fixedTimestamp)
+
+        // Act - Verify using same salt and timestamp
+        val computedDigest = VoiceFactor.digestWithSalt(audioData.copyOf(), fixedSalt, fixedTimestamp)
+        val result = computedDigest.contentEquals(digest)
+
         // Assert
         assertTrue("Matching audio should verify successfully", result)
     }

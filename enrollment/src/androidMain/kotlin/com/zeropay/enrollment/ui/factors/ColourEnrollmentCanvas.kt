@@ -413,7 +413,8 @@ private fun ColorButton(
     enabled: Boolean
 ) {
     val colorCode = ColourFactor.getColourCode(colorIndex)
-    val colorName = ColourFactor.getColourName(colorIndex)
+    @Suppress("UNUSED_VARIABLE")
+    val colorName = ColourFactor.getColourName(colorIndex) // For future accessibility support
     
     Box(
         modifier = Modifier

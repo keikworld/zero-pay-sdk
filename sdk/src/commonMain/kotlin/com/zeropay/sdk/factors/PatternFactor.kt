@@ -17,7 +17,7 @@ object PatternFactor {
 
     data class PatternPoint(val x: Float, val y: Float, val t: Long)
 
-    private const val MAX_POINTS = 300
+    const val MAX_POINTS = 300  // DoS protection
 
     /**
      * Generate digest with micro-timing (includes precise timestamps)

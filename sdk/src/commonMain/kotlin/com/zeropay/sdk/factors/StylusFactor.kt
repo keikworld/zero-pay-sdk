@@ -20,15 +20,22 @@ object StylusFactor {
         val pressure: Float,
         val t: Long
     )
-    
-    private const val MAX_POINTS = 300
+
+    const val MIN_POINTS = 10   // Minimum points for biometric quality
+    const val MAX_POINTS = 300  // DoS protection
 
     /**
      * Generate digest including pressure data
      */
     fun digestFull(points: List<StylusPoint>): ByteArray {
         require(points.isNotEmpty()) { "Points list cannot be empty" }
+        require(points.size >= MIN_POINTS) { "Need at least $MIN_POINTS points for stylus pattern" }
         require(points.size <= MAX_POINTS) { "Too many points (max: $MAX_POINTS)" }
+
+        // SECURITY: Validate pressure values (must be in 0.0-1.0 range)
+        require(points.all { it.pressure in 0.0f..1.0f }) {
+            "Invalid pressure values: all pressure values must be between 0.0 and 1.0"
+        }
         
         val bytes = mutableListOf<Byte>()
         

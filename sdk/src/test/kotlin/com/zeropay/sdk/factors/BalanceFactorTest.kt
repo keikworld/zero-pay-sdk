@@ -49,11 +49,15 @@ class BalanceFactorTest {
                 timestamp = 1000L + (i * 100L)
             )
         }
-        
+
+        // SECURITY NOTE: Using fixed timestamp for test determinism.
+        // In production, digest() uses current timestamp for replay protection (default).
+        val fixedTimestamp = 0L
+
         // Act
-        val digest1 = BalanceFactor.digest(points)
-        val digest2 = BalanceFactor.digest(points)
-        
+        val digest1 = BalanceFactor.digestWithTimestamp(points, fixedTimestamp)
+        val digest2 = BalanceFactor.digestWithTimestamp(points, fixedTimestamp)
+
         // Assert
         assertArrayEquals("Same input should produce same digest", digest1, digest2)
     }

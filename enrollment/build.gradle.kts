@@ -109,6 +109,13 @@ kotlin {
                 // AndroidX Test
                 implementation("androidx.test:core:1.5.0")
                 implementation("androidx.test:core-ktx:1.5.0")
+
+                // MockK for mocking dependencies
+                implementation("io.mockk:mockk-android:1.13.8")
+                implementation("io.mockk:mockk-agent:1.13.8")
+
+                // Coroutines test
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
             }
         }
     }

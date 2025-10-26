@@ -18,9 +18,9 @@ import java.util.Arrays
  * - Replay protection (timestamp + salt)
  */
 object VoiceFactor {
-    
-    private const val MIN_AUDIO_SIZE = 1000      // ~1 second
-    private const val MAX_AUDIO_SIZE = 5_000_000  // ~5 MB
+
+    const val MIN_AUDIO_SIZE = 1000      // ~1 second
+    const val MAX_AUDIO_SIZE = 5_000_000  // ~5 MB (DoS protection)
     
     /**
      * Generate digest from audio recording

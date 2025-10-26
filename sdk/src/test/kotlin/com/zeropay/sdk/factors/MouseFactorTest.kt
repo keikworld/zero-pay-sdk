@@ -54,20 +54,22 @@ class MouseFactorTest {
     
     @Test
     fun testDigest_DifferentPaths_ProduceDifferentDigests() {
-        // Arrange
+        // Arrange - Minimum 3 points required
         val path1 = listOf(
             MouseFactor.MousePoint(10f, 20f, 1000L),
-            MouseFactor.MousePoint(30f, 40f, 2000L)
+            MouseFactor.MousePoint(30f, 40f, 2000L),
+            MouseFactor.MousePoint(50f, 60f, 3000L)
         )
         val path2 = listOf(
             MouseFactor.MousePoint(50f, 60f, 1000L),
-            MouseFactor.MousePoint(70f, 80f, 2000L)
+            MouseFactor.MousePoint(70f, 80f, 2000L),
+            MouseFactor.MousePoint(90f, 100f, 3000L)
         )
-        
+
         // Act
         val digest1 = MouseFactor.digestMicroTiming(path1)
         val digest2 = MouseFactor.digestMicroTiming(path2)
-        
+
         // Assert
         assertFalse(
             "Different paths should produce different digests",
@@ -97,14 +99,16 @@ class MouseFactorTest {
     
     @Test
     fun testVerify_NonMatchingPath_ReturnsFalse() {
-        // Arrange
+        // Arrange - Minimum 3 points required
         val path1 = listOf(
             MouseFactor.MousePoint(10f, 20f, 1000L),
-            MouseFactor.MousePoint(30f, 40f, 2000L)
+            MouseFactor.MousePoint(30f, 40f, 2000L),
+            MouseFactor.MousePoint(50f, 60f, 3000L)
         )
         val path2 = listOf(
             MouseFactor.MousePoint(50f, 60f, 1000L),
-            MouseFactor.MousePoint(70f, 80f, 2000L)
+            MouseFactor.MousePoint(70f, 80f, 2000L),
+            MouseFactor.MousePoint(90f, 100f, 3000L)
         )
         val digest = MouseFactor.digestMicroTiming(path1)
 
@@ -174,27 +178,27 @@ class MouseFactorTest {
     
     @Test(expected = IllegalArgumentException::class)
     fun testDigest_TooFewPoints_ThrowsException() {
-        // Arrange - Only 5 points (minimum is 10)
-        val points = List(5) { i ->
+        // Arrange - Only 2 points (minimum is 3)
+        val points = List(2) { i ->
             MouseFactor.MousePoint(i.toFloat(), i.toFloat(), i.toLong())
         }
-        
+
         // Act
         MouseFactor.digestMicroTiming(points)
-        
+
         // Assert - Should throw
     }
     
     @Test
     fun testDigest_MinimumPoints_WorksCorrectly() {
-        // Arrange - Exactly 10 points
-        val points = List(10) { i ->
+        // Arrange - Exactly 3 points (MIN_POINTS)
+        val points = List(MouseFactor.MIN_POINTS) { i ->
             MouseFactor.MousePoint(i.toFloat() * 10, i.toFloat() * 10, i.toLong() * 100)
         }
-        
+
         // Act
         val digest = MouseFactor.digestMicroTiming(points)
-        
+
         // Assert
         assertEquals(32, digest.size)
     }
