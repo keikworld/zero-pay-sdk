@@ -1,4 +1,4 @@
-# 🎬 ZeroPay Investor Demo Script v3.0
+# 🎬 ZeroPay Investor Demo Script v5.0
 
 **Duration**: 8-10 minutes  
 **Objective**: Demonstrate device-free authentication engine enabling empty-handed purchases
@@ -37,7 +37,7 @@
 > "Let me show you the friction we eliminate. Today, every purchase requires a device: phone for tap-to-pay, card for swipe, or cash you have to carry. **We've chained payments to devices.**
 >
 > The cost? Massive:
-> - **In-store**: 20% of transactions fail due to forgotten cards, dead phone batteries, or payment app glitches
+> - **In-store**: Over 6% of transactions fail due to forgotten cards, dead phone batteries, or payment app glitches
 > - **Online**: 70% cart abandonment rate when users have to enter card details
 > - **Result**: Over **$2 trillion in lost sales** annually (Mastercard/Baymard 2025)
 >
@@ -49,7 +49,7 @@
 
 **Actions:**
 1. Open demo in Enrollment mode
-2. Show 14 available factors (7 active, 7 coming soon)
+2. Show 13+ available factors (7 active, 7 coming soon)
 3. Select 6 factors:
    - **PIN** (4-6 digits)
    - **Pattern** (draw a unique shape)
@@ -77,7 +77,7 @@
 > - Mock OAuth flow simulates real gateway authentication
 > - Tokens encrypted with AES-256-GCM
 >
-> Done! User gets a memorable alias: '**RedFox42**' and a UUID. No app install required. This works on any device—POS, Android, iOS, or web."
+> Done! User gets a memorable alias: '**RedFox42**' and a UUID. This works on any device—mPOS, Android, iOS, or web."
 
 **Key Points to Emphasize:**
 - ✅ **5-minute setup**, works immediately
