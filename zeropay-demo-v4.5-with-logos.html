@@ -83,6 +83,10 @@
             color: #2D2D2D;
         }
 
+        body.light-theme .step-number:hover {
+            box-shadow: 0 0 12px rgba(203, 157, 240, 0.6);
+        }
+
         body.light-theme .step.active .step-number {
             background: linear-gradient(135deg, #CB9DF0 0%, #8B5CF6 100%);
             color: #FFFFFF;
@@ -266,6 +270,32 @@
             color: #FFFFFF;
         }
 
+        body.light-theme .info-text {
+            color: rgba(45, 45, 45, 0.8);
+        }
+
+        body.light-theme .warning-message {
+            background: rgba(255, 183, 77, 0.1);
+            border: 2px solid rgba(255, 152, 0, 0.5);
+            color: #E65100;
+        }
+
+        body.light-theme .error-message {
+            background: rgba(210, 70, 63, 0.1);
+            border: 2px solid rgba(210, 70, 63, 0.5);
+            color: #D2463F;
+        }
+
+        body.light-theme .success-screen .success-title {
+            color: #2D2D2D;
+        }
+
+        body.light-theme .cart-header,
+        body.light-theme .mock-pos .pos-header,
+        body.light-theme .payment-form-title {
+            color: #2D2D2D;
+        }
+
 
 
 
@@ -376,6 +406,13 @@
             font-size: 14px;
             font-weight: 600;
             color: #F3F4F6;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .step-number:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
         }
 
         .step.active .step-number {
@@ -1546,7 +1583,7 @@
                         <div className="step-indicator">
                             {[1, 2, 3, 4, 5].map(num => (
                                 <div key={num} className={`step ${step === num ? 'active' : step > num ? 'completed' : ''}`}>
-                                    <div className="step-number">{num}</div>
+                                    <div className="step-number" onClick={() => setStep(num)}>{num}</div>
                                     <div className="step-label">
                                         {num === 1 && 'Select'}
                                         {num === 2 && 'Capture'}
@@ -2716,10 +2753,10 @@
                     return () => clearInterval(timer);
                 }
                 if (timeRemaining === 0 && !isBlocked) {
-                    setError('⏱️ Session timed out. Please start over.');
+                    setStage('timeout');
                     setTimeout(() => {
-                        setStage('uuid');
                         resetState();
+                        if (onBack) onBack();
                     }, 3000);
                 }
             }, [stage, timeRemaining, isBlocked]);
@@ -2839,7 +2876,7 @@
                 } else {
                     if (enrollmentData.gateways.length === 1) {
                         setSelectedGateway(enrollmentData.gateways[0]);
-                        setStage('complete');
+                        setStage('authenticating');
                     } else {
                         setStage('gateway');
                     }
@@ -2847,8 +2884,23 @@
             };
 
             const handleGatewaySubmit = () => {
-                setStage('complete');
+                setStage('authenticating');
             };
+
+            // Animation sequence for authentication and payment handoff
+            useEffect(() => {
+                if (stage === 'authenticating') {
+                    const timer = setTimeout(() => {
+                        setStage('handoff');
+                    }, 1500);
+                    return () => clearTimeout(timer);
+                } else if (stage === 'handoff') {
+                    const timer = setTimeout(() => {
+                        setStage('complete');
+                    }, 1500);
+                    return () => clearTimeout(timer);
+                }
+            }, [stage]);
 
             const handleReset = () => {
                 setStage('uuid');
@@ -2945,11 +2997,44 @@
                         </div>
                     )}
 
+                    {stage === 'authenticating' && (
+                        <div className="card">
+                            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                                <div style={{ fontSize: '64px', marginBottom: '20px' }}>🔐</div>
+                                <div className="card-title" style={{ marginBottom: '16px' }}>Authenticating User</div>
+                                <div className="info-text" style={{ fontSize: '16px', marginBottom: '24px' }}>
+                                    Verifying all authentication factors...
+                                </div>
+                                <div className="loading-spinner">
+                                    <div className="loading-spinner-fill"></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {stage === 'handoff' && (
+                        <div className="card">
+                            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                                <div style={{ fontSize: '64px', marginBottom: '20px' }}>💳</div>
+                                <div className="card-title" style={{ marginBottom: '16px' }}>Connecting to Payment Provider</div>
+                                <div className="info-text" style={{ fontSize: '16px', marginBottom: '16px' }}>
+                                    Handing off transaction to <strong>{PAYMENT_GATEWAYS.find(g => g.id === selectedGateway)?.name}</strong>
+                                </div>
+                                <div className="info-text" style={{ fontSize: '14px', marginBottom: '24px', color: 'rgba(243, 244, 246, 0.7)' }}>
+                                    ✅ User authenticated successfully
+                                </div>
+                                <div className="loading-spinner">
+                                    <div className="loading-spinner-fill"></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {stage === 'complete' && (
                         <div className="success-screen">
                             <div className="success-icon">✅</div>
                             <div className="success-title">User Authenticated!</div>
-                            
+
                             <div className="info-box">
                                 <div className="info-box-item">
                                     <span className="info-box-icon">✓</span>
@@ -2979,6 +3064,24 @@
                             <button className="btn btn-primary" onClick={handleReset}>
                                 Verify Another Customer
                             </button>
+                        </div>
+                    )}
+
+                    {stage === 'timeout' && (
+                        <div className="card">
+                            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                                <div style={{ fontSize: '64px', marginBottom: '20px' }}>⏱️</div>
+                                <div className="card-title" style={{ marginBottom: '16px' }}>Session Timeout</div>
+                                <div className="info-text" style={{ fontSize: '16px', marginBottom: '24px' }}>
+                                    Your verification session has expired after 3 minutes.
+                                </div>
+                                <div className="info-text" style={{ fontSize: '15px', color: 'rgba(243, 244, 246, 0.7)' }}>
+                                    Please try again.
+                                </div>
+                                <div style={{ marginTop: '24px', fontSize: '14px', color: 'rgba(243, 244, 246, 0.5)' }}>
+                                    Returning to main page in 3 seconds...
+                                </div>
+                            </div>
                         </div>
                     )}
                 </>
