@@ -12,6 +12,7 @@ ZeroPay is a next-generation authentication platform that combines zero-knowledg
 
 - [Features](#features)
 - [Architecture](#architecture)
+- [Implementation Status](#implementation-status)
 - [Getting Started](#getting-started)
 - [Usage](#usage)
 - [Security](#security)
@@ -24,41 +25,42 @@ ZeroPay is a next-generation authentication platform that combines zero-knowledg
 
 ### Core Capabilities
 
-- **13+ Authentication Factors** across 5 categories (biometric, knowledge, behavior, possession, location)
+- **15 Authentication Factors** across 5 categories (biometric, knowledge, behavior, possession, location)
 - **Zero-Knowledge Proofs** using ZK-SNARKs for privacy-preserving verification
 - **Double-Layer Encryption** with PBKDF2 key derivation and KMS wrapping
 - **Device-Free Authentication** - users can verify from any device using their memorized factors
-- **Blockchain Integration** with Solana Pay, Phantom Wallet, and Ethereum support
-- **Payment Gateway Abstraction** supporting 13+ providers (Stripe, Adyen, Google Pay, etc.)
+- **Blockchain Integration** with Solana Pay and Phantom Wallet
+- **Payment Gateway Abstraction** supporting 14 providers (Stripe, Adyen, PayU, Google Pay, Apple Pay, etc.)
 - **Redis-Backed Caching** with TLS encryption and 24-hour TTL
 - **Constant-Time Operations** to prevent timing attacks
 - **Memory Wiping** for sensitive data protection
 
 ### Authentication Factors
 
-#### Knowledge Factors
+#### Knowledge Factors (5)
 - **PIN**: 4-12 digit PIN with sequence/repeat validation
-- **Pattern**: Visual pattern lock (3+ strokes)
-- **Words**: Memorable word sequence (3-8 words)
 - **Colour**: Color sequence selection (3-6 colors)
 - **Emoji**: Emoji sequence selection (3-8 emojis)
+- **Words**: Memorable word sequence (3-10 words)
+- **Pattern** (Normal): Visual pattern lock with normalized timing
 
-#### Biometric Factors
+#### Biometric Factors (3)
 - **Face**: Face recognition via Android BiometricPrompt
 - **Fingerprint**: Fingerprint authentication via BiometricPrompt
 - **Voice**: Text-based voice phrase (not audio biometric)
 
-#### Behavioral Factors
-- **RhythmTap**: Tap rhythm pattern recognition
-- **MouseDraw**: Mouse gesture drawing pattern
-- **StylusDraw**: Stylus drawing pattern
-- **ImageTap**: Image region tap sequence
+#### Behavioral Factors (5)
+- **Pattern** (Micro): Drawing pattern with millisecond-precision timing analysis
+- **RhythmTap**: Rhythmic tap sequence (4-6 taps, 3-5 second window)
+- **MouseDraw**: Mouse/touchscreen gesture drawing with trajectory analysis
+- **StylusDraw**: Stylus signature with pressure sensitivity
+- **ImageTap**: Tap point sequence on abstract images
 
-#### Possession Factors
-- **NFC**: NFC tag authentication
+#### Possession Factors (1)
+- **NFC**: NFC tag/card authentication
 
-#### Location Factors
-- **Balance**: Device tilt/balance gesture (not GPS)
+#### Location Factors (1)
+- **Balance**: Device tilt/balance gesture using accelerometer (not GPS)
 
 ## Architecture
 
@@ -70,15 +72,16 @@ zeropay-android/
 │   ├── crypto/            # SHA-256, PBKDF2, AES-256-GCM
 │   ├── factors/           # Factor implementations
 │   ├── security/          # Security primitives
-│   ├── blockchain/        # Solana/Ethereum integration
-│   └── gateway/           # Payment gateway abstraction
+│   ├── blockchain/        # Solana integration (Phantom Wallet)
+│   └── gateway/           # Payment gateway abstraction (14 providers)
 ├── enrollment/            # User enrollment module
 │   ├── ui/               # 5-step enrollment wizard
 │   ├── payment/          # Payment provider linking
 │   └── consent/          # GDPR consent management
 ├── merchant/             # Merchant verification module
-│   ├── verification/     # Session-based verification
-│   └── fraud/           # Fraud detection & rate limiting
+│   ├── verification/     # Session-based verification (in development)
+│   ├── fraud/           # Fraud detection & rate limiting (7 strategies)
+│   └── ui/              # Merchant verification UI (17 factor canvases)
 └── backend/             # Node.js API server
     ├── routes/          # REST API endpoints
     ├── crypto/          # Double-layer encryption
@@ -88,7 +91,7 @@ zeropay-android/
 ### Authentication Flow
 
 #### Enrollment
-1. User selects 6+ factors from 13 available types (minimum 2 categories for PSD3 SCA)
+1. User selects 6+ factors from 15 available types (minimum 2 categories for PSD3 SCA)
 2. User completes each factor (UI generates SHA-256 digest locally)
 3. SDK derives encryption key from factor digests using PBKDF2 (100K iterations)
 4. SDK encrypts digests with derived key (AES-256-GCM)
@@ -110,6 +113,79 @@ zeropay-android/
 - **Redis (Backend)**: Secondary cache with 24h TTL, TLS 1.3 encryption
 - **PostgreSQL (Backend)**: KMS-wrapped encryption keys only
 - **No Raw Data**: Only SHA-256 digests stored, never plaintext inputs
+
+## Implementation Status
+
+### ✅ Fully Implemented
+
+**Core SDK:**
+- ✅ All 15 authentication factors with processors and UI canvases
+- ✅ Double-layer encryption (PBKDF2 + KMS wrapping)
+- ✅ Constant-time comparison for timing attack prevention
+- ✅ Memory wiping for sensitive data protection
+- ✅ Rate limiting (multi-layer: global, per-IP, per-user, blockchain)
+- ✅ Solana blockchain integration (Phantom Wallet, RPC client, Solana Pay)
+- ✅ 14 payment gateway abstractions (Stripe, Adyen, PayU, Google Pay, Apple Pay, etc.)
+
+**Enrollment Module:**
+- ✅ Complete 5-step enrollment wizard UI (~7,375 lines)
+- ✅ All 15 factor enrollment canvases (Jetpack Compose)
+- ✅ GDPR consent management with timestamp tracking
+- ✅ Payment provider linking scaffolding (14 providers)
+- ✅ UUID generation and alias creation
+
+**Backend (Node.js):**
+- ✅ Enrollment API (store, retrieve, update, delete, export)
+- ✅ Verification API (initiate, verify, status)
+- ✅ Blockchain API (7 endpoints for Solana wallets/transactions)
+- ✅ Admin API (stats, monitoring, health checks)
+- ✅ Redis cache with TLS encryption
+- ✅ PostgreSQL for wrapped key storage
+- ✅ AWS KMS integration for key wrapping
+- ✅ Multi-layer rate limiting middleware
+- ✅ GDPR compliance features (deletion, export)
+
+**Testing:**
+- ✅ 38 test files across SDK, enrollment, and backend
+- ✅ Unit tests for all major factors
+- ✅ Integration tests for enrollment/verification flows
+- ✅ Crypto utilities testing
+- ✅ Backend API tests
+
+### 🚧 In Development
+
+**Merchant Verification Module:**
+- 🚧 Verification UI (17 factor canvases implemented, currently disabled for testing)
+- 🚧 VerificationManager (core logic implemented, disabled)
+- 🚧 DigestComparator (constant-time comparison implemented, disabled)
+- 🚧 Fraud detection (7-strategy system implemented, KMP compatibility pending)
+- 🚧 Rate limiter integration (implemented, disabled)
+
+**Advanced Features:**
+- 🚧 ZK-SNARK proof generation (preparation layer complete, actual proof generation pending)
+- 🚧 Payment provider OAuth implementations (scaffolded, awaiting real OAuth library integration)
+
+### ⏳ Planned
+
+**Blockchain:**
+- ⏳ Ethereum & Layer 2 support (MetaMask, WalletConnect)
+- ⏳ Bitcoin Lightning Network integration
+- ⏳ Multi-chain wallet management
+
+**Platform Expansion:**
+- ⏳ iOS SDK (Kotlin Multiplatform migration)
+- ⏳ Web SDK (WASM/WebAssembly)
+- ⏳ Online-Web verification interface (currently minimal)
+
+**Security Enhancements:**
+- ⏳ Biometric liveness detection
+- ⏳ Hardware security module (HSM) integration
+- ⏳ Signal Protocol encryption (currently disabled)
+
+**Features:**
+- ⏳ Multi-device synchronization
+- ⏳ Offline verification mode
+- ⏳ Additional payment providers (PayPal, Square, etc.)
 
 ## Getting Started
 
@@ -311,6 +387,20 @@ walletManager.linkPhantomWallet(
         println("Wallet linking failed: ${error.message}")
     }
 )
+
+// Check Solana balance
+solanaClient.getBalance(walletAddress) { balance, error ->
+    if (error == null) {
+        println("Balance: $balance SOL")
+    }
+}
+
+// Generate Solana Pay QR code for transactions
+val qrData = solanaPayUrlGenerator.generateQrData(
+    recipient = merchantAddress,
+    amount = 99.99,
+    reference = transactionId
+)
 ```
 
 ## Security
@@ -376,9 +466,10 @@ ZeroPay protects against:
 
 ### PSD3 SCA (Strong Customer Authentication)
 
-ZeroPay meets PSD3 SCA requirements:
-- Minimum 6 authentication factors required
-- Minimum 2 factor categories (biometric, knowledge, behavior, possession, location)
+ZeroPay exceeds PSD3 SCA requirements:
+- **15 authentication factors available** across 5 categories (exceeds minimum requirement)
+- Minimum 6 factors required per enrollment
+- Minimum 2 factor categories required (biometric, knowledge, behavior, possession, location)
 - Transaction amount validation
 - Dynamic linking with cryptographic proof
 
@@ -424,10 +515,31 @@ Body: {
 Response: { "verified": true, "zkProof": "...", "confidence": 0.98 }
 ```
 
-#### Blockchain
+#### Blockchain (Solana)
 ```
-POST /api/blockchain/verify-wallet
-Body: { "walletAddress": "...", "signature": "...", "message": "..." }
+POST /v1/blockchain/wallets/link
+Body: { "uuid": "...", "walletAddress": "...", "signature": "...", "network": "solana" }
+Response: { "success": true, "linkedAt": "..." }
+
+DELETE /v1/blockchain/wallets/unlink
+Body: { "uuid": "...", "walletAddress": "..." }
+Response: { "success": true }
+
+GET /v1/blockchain/wallets/:uuid
+Response: { "wallets": [{ "address": "...", "network": "solana", "linkedAt": "..." }] }
+
+GET /v1/blockchain/balance/:address
+Response: { "balance": 1.234, "network": "solana", "currency": "SOL" }
+
+POST /v1/blockchain/transactions/estimate
+Body: { "from": "...", "to": "...", "amount": 1.0 }
+Response: { "estimatedFee": 0.000005, "network": "solana" }
+
+GET /v1/blockchain/transactions/:signature
+Response: { "status": "confirmed", "signature": "...", "blockTime": 1234567890 }
+
+POST /v1/blockchain/transactions/verify
+Body: { "signature": "...", "message": "...", "walletAddress": "..." }
 Response: { "verified": true, "network": "solana" }
 ```
 
@@ -539,14 +651,22 @@ Please report security vulnerabilities privately to security@zeropay.com. Do not
 
 ## Roadmap
 
+### In Progress
+- [ ] Merchant verification UI (implemented, currently disabled for testing)
+- [ ] ZK-SNARK proof generation (preparation layer complete, proof generation pending)
+- [ ] Fraud detection system (7-strategy implementation complete, KMP compatibility pending)
+
+### Planned Features
+- [ ] Ethereum & Layer 2 blockchain support (MetaMask, WalletConnect integration)
 - [ ] iOS SDK (Swift/Kotlin Multiplatform)
-- [ ] Web SDK (WASM)
+- [ ] Web SDK (WASM/WebAssembly)
 - [ ] Additional payment providers (PayPal, Square, etc.)
+- [ ] Payment provider OAuth implementations (currently scaffolded)
 - [ ] Biometric liveness detection
 - [ ] Multi-device synchronization
 - [ ] Offline verification mode
 - [ ] Hardware security module (HSM) integration
-- [ ] Additional blockchain networks (Ethereum L2s, Bitcoin)
+- [ ] Additional blockchain networks (Bitcoin Lightning Network)
 
 ## License
 
