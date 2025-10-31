@@ -608,9 +608,8 @@ class VerificationManager(
                 VerificationResult.Success(
                     sessionId = session.sessionId,
                     userId = session.userId,
-                    verifiedAt = System.currentTimeMillis(),
-                    confidenceScore = apiResponse.confidence_score,
-                    factorsUsed = session.completedFactors.toList(),
+                    merchantId = session.merchantId,
+                    verifiedFactors = session.completedFactors.toList(),
                     zkProof = apiResponse.zk_proof
                 )
             } else {

@@ -117,55 +117,63 @@ class FraudDetectorComplete {
         val now = System.currentTimeMillis()
         var riskScore = 0
         val reasons = mutableListOf<String>()
-        
+
+        // Initialize risk result variables for all strategies
+        // (needed for details map at end, even if strategy not executed)
+        var geoRisk = RiskResult(0, emptyList())
+        var deviceRisk = RiskResult(0, emptyList())
+        var behaviorRisk = RiskResult(0, emptyList())
+        var ipRisk = RiskResult(0, emptyList())
+        var transactionRisk = RiskResult(0, emptyList())
+
         // ==================== STRATEGY 1: VELOCITY CHECKS ====================
-        
+
         val velocityRisk = checkVelocity(userId, now)
         riskScore += velocityRisk.score
         reasons.addAll(velocityRisk.reasons)
-        
+
         // ==================== STRATEGY 2: GEOLOCATION ANOMALIES ====================
-        
+
         if (location != null) {
-            val geoRisk = checkGeolocationAnomalies(userId, location, now)
+            geoRisk = checkGeolocationAnomalies(userId, location, now)
             riskScore += geoRisk.score
             reasons.addAll(geoRisk.reasons)
         }
-        
+
         // ==================== STRATEGY 3: DEVICE FINGERPRINT ANALYSIS ====================
-        
+
         if (deviceFingerprint != null) {
-            val deviceRisk = checkDeviceFingerprint(userId, deviceFingerprint, now)
+            deviceRisk = checkDeviceFingerprint(userId, deviceFingerprint, now)
             riskScore += deviceRisk.score
             reasons.addAll(deviceRisk.reasons)
         }
-        
+
         // ==================== STRATEGY 4: BEHAVIORAL PATTERNS ====================
-        
+
         if (behavioralData != null) {
-            val behaviorRisk = checkBehavioralPatterns(userId, behavioralData, now)
+            behaviorRisk = checkBehavioralPatterns(userId, behavioralData, now)
             riskScore += behaviorRisk.score
             reasons.addAll(behaviorRisk.reasons)
         }
-        
+
         // ==================== STRATEGY 5: IP REPUTATION ====================
-        
+
         if (ipAddress != null) {
-            val ipRisk = checkIPReputation(userId, ipAddress, now)
+            ipRisk = checkIPReputation(userId, ipAddress, now)
             riskScore += ipRisk.score
             reasons.addAll(ipRisk.reasons)
         }
-        
+
         // ==================== STRATEGY 6: TIME-OF-DAY PATTERNS ====================
-        
+
         val timeRisk = checkTimeOfDayPatterns(userId, now)
         riskScore += timeRisk.score
         reasons.addAll(timeRisk.reasons)
-        
+
         // ==================== STRATEGY 7: TRANSACTION AMOUNT ANOMALIES ====================
-        
+
         if (transactionAmount != null) {
-            val transactionRisk = checkTransactionAnomalies(userId, transactionAmount, now)
+            transactionRisk = checkTransactionAnomalies(userId, transactionAmount, now)
             riskScore += transactionRisk.score
             reasons.addAll(transactionRisk.reasons)
         }
