@@ -4,7 +4,7 @@
 
 ZeroPay is a next-generation authentication platform that combines zero-knowledge proofs with multi-factor authentication to enable secure, privacy-preserving payment verification without requiring physical devices or passwords.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Kotlin](https://img.shields.io/badge/kotlin-1.9+-blue.svg)](https://kotlinlang.org)
 [![PSD3 SCA Compliant](https://img.shields.io/badge/PSD3-SCA%20Compliant-green.svg)](https://www.ecb.europa.eu)
 
@@ -670,7 +670,7 @@ Please report security vulnerabilities privately to security@zeropay.com. Do not
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
