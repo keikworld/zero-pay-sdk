@@ -2,11 +2,10 @@
 
 package com.zeropay.merchant.fraud
 
-import android.util.Log
+import kotlin.math.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 // REMOVED: import java.util.concurrent.ConcurrentHashMap - Not KMP compatible
-import kotlin.math.*
 
 /**
  * Complete Fraud Detector - PRODUCTION VERSION
@@ -73,22 +72,22 @@ class FraudDetectorComplete {
     }
     
     // User activity tracking
-    private val userAttempts = MutableMap<String, MutableList<AttemptRecord>>()
-    private val deviceAttempts = MutableMap<String, MutableList<AttemptRecord>>()
-    private val ipAttempts = MutableMap<String, MutableList<AttemptRecord>>()
-    
+    private val userAttempts = mutableMapOf<String, MutableList<AttemptRecord>>()
+    private val deviceAttempts = mutableMapOf<String, MutableList<AttemptRecord>>()
+    private val ipAttempts = mutableMapOf<String, MutableList<AttemptRecord>>()
+
     // User location tracking
-    private val userLocations = MutableMap<String, MutableList<LocationRecord>>()
-    
+    private val userLocations = mutableMapOf<String, MutableList<LocationRecord>>()
+
     // User spending patterns
-    private val userTransactions = MutableMap<String, MutableList<TransactionRecord>>()
-    
+    private val userTransactions = mutableMapOf<String, MutableList<TransactionRecord>>()
+
     // Behavioral profiles
-    private val userBehaviorProfiles = MutableMap<String, BehavioralProfile>()
-    
+    private val userBehaviorProfiles = mutableMapOf<String, BehavioralProfile>()
+
     // Known malicious entities
-    private val blacklistedIPs = MutableMap<String, BlacklistEntry>()
-    private val blacklistedDevices = MutableMap<String, BlacklistEntry>()
+    private val blacklistedIPs = mutableMapOf<String, BlacklistEntry>()
+    private val blacklistedDevices = mutableMapOf<String, BlacklistEntry>()
     
     // Mutex for thread safety
     private val mutex = Mutex()
@@ -499,36 +498,34 @@ class FraudDetectorComplete {
     private fun checkTimeOfDayPatterns(userId: String, now: Long): RiskResult {
         var score = 0
         val reasons = mutableListOf<String>()
-        
-        // Get hour of day (0-23)
-        val hour = java.util.Calendar.getInstance().apply {
-            timeInMillis = now
-        }.get(java.util.Calendar.HOUR_OF_DAY)
-        
-        // Unusual hours (2 AM - 5 AM local time)
+
+        // Get hour of day (0-23) from epoch milliseconds (UTC)
+        // KMP-compatible: pure Kotlin math, no java.util.Calendar
+        val hour = ((now / (1000 * 60 * 60)) % 24).toInt()
+
+        // Unusual hours (2 AM - 5 AM UTC)
         if (hour in 2..5) {
             score += 5
-            reasons.add("Unusual time: ${hour}:00")
+            reasons.add("Unusual time: ${hour}:00 UTC")
         }
-        
+
         // Check user's historical time-of-day pattern
         val userAttemptList = userAttempts[userId]
         if (userAttemptList != null && userAttemptList.size > 10) {
             val historicalHours = userAttemptList.map { attempt ->
-                java.util.Calendar.getInstance().apply {
-                    timeInMillis = attempt.timestamp
-                }.get(java.util.Calendar.HOUR_OF_DAY)
+                // Extract hour from timestamp (UTC)
+                ((attempt.timestamp / (1000 * 60 * 60)) % 24).toInt()
             }
-            
+
             val avgHour = historicalHours.average()
             val hourDeviation = abs(hour - avgHour)
-            
+
             if (hourDeviation > 8) {
                 score += 10
                 reasons.add("Unusual time for this user")
             }
         }
-        
+
         return RiskResult(score, reasons)
     }
     

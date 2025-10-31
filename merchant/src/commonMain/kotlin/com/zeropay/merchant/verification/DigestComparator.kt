@@ -2,8 +2,7 @@
 
 package com.zeropay.merchant.verification
 
-import android.util.Log
-import java.security.MessageDigest
+import com.zeropay.sdk.security.CryptoUtils
 
 /**
  * Digest Comparator - PRODUCTION VERSION
@@ -212,8 +211,8 @@ class DigestComparator {
      */
     fun getDigestFingerprint(digest: ByteArray): String {
         return try {
-            val md = MessageDigest.getInstance("SHA-256")
-            val hash = md.digest(digest)
+            // Use SDK's KMP-compatible sha256 function
+            val hash = CryptoUtils.sha256(digest)
             // Return only first 8 bytes as hex
             hash.take(8).joinToString("") { "%02x".format(it) }
         } catch (e: Exception) {

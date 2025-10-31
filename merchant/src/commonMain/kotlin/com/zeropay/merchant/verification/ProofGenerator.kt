@@ -2,11 +2,10 @@
 
 package com.zeropay.merchant.verification
 
-import android.util.Log
 import com.zeropay.merchant.config.MerchantConfig
 import com.zeropay.sdk.Factor
+import com.zeropay.sdk.security.CryptoUtils
 import kotlinx.coroutines.withTimeout
-import java.security.MessageDigest
 
 /**
  * Proof Generator - ZK-SNARK Proof Generation
@@ -110,22 +109,20 @@ class ProofGenerator {
         factors: Map<Factor, ByteArray>
     ): ByteArray {
         println("⚠️ Using PLACEHOLDER proof generation - NOT production ZK-SNARK!")
-        
+
         // Create commitment by hashing UUID + all factor digests
-        val md = MessageDigest.getInstance("SHA-256")
-        
-        // Add UUID
-        md.update(userId.toByteArray())
-        
-        // Add factor digests in deterministic order
-        factors.keys.sorted().forEach { factor ->
-            val digest = factors[factor]!!
-            md.update(factor.name.toByteArray())
-            md.update(digest)
+        // Concatenate all data for hashing
+        val dataToHash = buildList<ByteArray> {
+            add(userId.toByteArray())
+            factors.keys.sorted().forEach { factor ->
+                add(factor.name.toByteArray())
+                add(factors[factor]!!)
+            }
         }
-        
-        // Generate commitment
-        val commitment = md.digest()
+
+        // Generate commitment using SDK's KMP-compatible hash
+        val concatenated = dataToHash.reduce { acc, bytes -> acc + bytes }
+        val commitment = CryptoUtils.sha256(concatenated)
         
         // Create placeholder proof structure
         // In real ZK-SNARK, this would be (π_A, π_B, π_C) from Groth16
