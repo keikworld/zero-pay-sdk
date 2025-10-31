@@ -494,6 +494,24 @@ class FraudDetectorComplete {
     
     /**
      * Strategy 6: Check time-of-day patterns
+     *
+     * ⚠️  WARNING: TIMEZONE HANDLING ISSUE
+     * This function currently uses UTC hours, which creates FALSE POSITIVES across timezones.
+     *
+     * Example: A Tokyo user (UTC+9) transacting at 11 AM local time maps to 2 AM UTC
+     * and would incorrectly trigger the unusual hours penalty.
+     *
+     * CURRENT STATUS:
+     * - UTC "unusual hours" check (2-5 AM) has been DISABLED to prevent false positives
+     * - Historical deviation check remains active but also uses UTC (lower false positive rate)
+     *
+     * TODO: Proper timezone support requires:
+     * 1. Add timezone parameter to Location data class (e.g., "America/New_York", offset, etc.)
+     * 2. Convert UTC timestamps to local time before hour extraction
+     * 3. Re-enable unusual hours check using local time
+     * 4. Update historical deviation to use local hours
+     *
+     * Until timezone support is added, this strategy provides limited value.
      */
     private fun checkTimeOfDayPatterns(userId: String, now: Long): RiskResult {
         var score = 0
@@ -503,26 +521,41 @@ class FraudDetectorComplete {
         // KMP-compatible: pure Kotlin math, no java.util.Calendar
         val hour = ((now / (1000 * 60 * 60)) % 24).toInt()
 
-        // Unusual hours (2 AM - 5 AM UTC)
-        if (hour in 2..5) {
-            score += 5
-            reasons.add("Unusual time: ${hour}:00 UTC")
-        }
+        // ⚠️  DISABLED: Unusual hours check (UTC-based, causes false positives across timezones)
+        //
+        // This check flagged 2-5 AM UTC as unusual, but without timezone information:
+        // - Tokyo user (UTC+9) at 11 AM local → 2 AM UTC → falsely flagged
+        // - NYC user (UTC-5) at 9 PM local → 2 AM UTC → falsely flagged
+        //
+        // Uncomment when Location includes timezone data and logic uses local hours:
+        //
+        // if (hour in 2..5) {
+        //     score += 5
+        //     reasons.add("Unusual time: ${hour}:00 UTC")
+        // }
 
         // Check user's historical time-of-day pattern
+        // ⚠️  NOTE: This also uses UTC hours but has lower false positive rate
+        // since it compares against user's own historical pattern (not absolute hours)
+        //
+        // Still needs timezone fix for accuracy, but less critical than absolute hour check
         val userAttemptList = userAttempts[userId]
         if (userAttemptList != null && userAttemptList.size > 10) {
             val historicalHours = userAttemptList.map { attempt ->
                 // Extract hour from timestamp (UTC)
+                // TODO: Convert to local time once timezone support added
                 ((attempt.timestamp / (1000 * 60 * 60)) % 24).toInt()
             }
 
             val avgHour = historicalHours.average()
             val hourDeviation = abs(hour - avgHour)
 
+            // Large deviation (>8 hours) suggests unusual behavior
+            // This works somewhat across timezones since we're comparing against
+            // user's own pattern, but would be more accurate with local time
             if (hourDeviation > 8) {
                 score += 10
-                reasons.add("Unusual time for this user")
+                reasons.add("Unusual time for this user (UTC-based, needs timezone fix)")
             }
         }
 
@@ -702,11 +735,26 @@ class FraudDetectorComplete {
 // DATA CLASSES
 // ============================================================================
 
+/**
+ * Location data for fraud detection
+ *
+ * TODO: Add timezone support to fix time-of-day false positives
+ * Options:
+ * 1. timezone: String? = null  // e.g., "America/New_York", "Asia/Tokyo"
+ * 2. timezoneOffset: Int? = null  // e.g., -5 (hours from UTC)
+ * 3. Both (timezone ID + offset for validation)
+ *
+ * With timezone support, time-of-day fraud detection can use local hours
+ * instead of UTC, eliminating false positives across timezones.
+ */
 data class Location(
     val latitude: Double,
     val longitude: Double,
     val country: String? = null,
     val city: String? = null
+    // TODO: Add timezone support here (see comment above)
+    // val timezone: String? = null,
+    // val timezoneOffset: Int? = null
 )
 
 data class LocationRecord(
