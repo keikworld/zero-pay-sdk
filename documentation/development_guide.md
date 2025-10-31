@@ -142,23 +142,94 @@ val x = 5 // Set x to 5
 ### Module Structure
 
 ```
-sdk/
-├── commonMain/           # Platform-agnostic code
-│   ├── Factor.kt         # Enums, data classes
-│   ├── RateLimiter.kt    # Business logic
-│   ├── crypto/           # Cryptography
-│   ├── factors/          # Factor implementations
-│   ├── security/         # Security features
-│   ├── network/          # Network layer
-│   └── zksnark/          # zkSNARK preparation
+zeropay-android/
+├── sdk/                          # Core SDK (Kotlin Multiplatform)
+│   ├── commonMain/              # Platform-agnostic code
+│   │   ├── Factor.kt            # 15 factor enum with metadata (923 lines)
+│   │   ├── RateLimiter.kt       # Multi-layer rate limiting
+│   │   ├── crypto/              # SHA-256, PBKDF2, constant-time ops
+│   │   │   ├── CryptoUtils.kt
+│   │   │   ├── ConstantTime.kt
+│   │   │   ├── KeyDerivation.kt
+│   │   │   └── DoubleLayerEncryption.kt
+│   │   ├── factors/             # Factor implementations (15 total)
+│   │   │   ├── processors/      # PinProcessor, ColorProcessor, etc.
+│   │   │   └── validation/      # Input validation logic
+│   │   ├── security/            # Security primitives
+│   │   │   ├── SecureMemory.kt
+│   │   │   ├── SecurityPolicy.kt
+│   │   │   └── AntiTampering.kt
+│   │   ├── blockchain/          # Solana integration only
+│   │   │   ├── PhantomWalletProvider.kt
+│   │   │   ├── SolanaClient.kt
+│   │   │   ├── WalletLinkingManager.kt
+│   │   │   └── SolanaPayUrlGenerator.kt
+│   │   ├── gateway/             # 14 payment gateway abstractions
+│   │   │   ├── impl/            # StripeGateway, AdyenGateway, etc.
+│   │   │   ├── GatewayProvider.kt
+│   │   │   └── PaymentHandoffManager.kt
+│   │   ├── network/             # API clients
+│   │   │   ├── VerificationClient.kt
+│   │   │   └── EnrollmentClient.kt
+│   │   └── zksnark/             # ZK-SNARK preparation layer
+│   │
+│   ├── androidMain/             # Android-specific code
+│   │   ├── factors/             # 15 Compose UI canvases
+│   │   │   ├── PinCanvas.kt
+│   │   │   ├── PatternCanvas.kt
+│   │   │   ├── BiometricCanvas.kt
+│   │   │   └── ... (12 more)
+│   │   ├── storage/             # KeyStore, EncryptedSharedPreferences
+│   │   │   ├── KeyStoreManager.kt
+│   │   │   └── SecureStorage.kt
+│   │   ├── ui/                  # Reusable UI components
+│   │   └── AndroidManifest.xml
+│   │
+│   └── test/                    # Unit tests (38 test files)
+│       └── kotlin/com/zeropay/sdk/
 │
-├── androidMain/          # Android-specific code
-│   ├── factors/          # UI (Compose)
-│   ├── storage/          # KeyStore, storage
-│   └── AndroidManifest.xml
-│
-└── test/                 # Unit tests
-    └── kotlin/
+├── enrollment/                   # Enrollment module
+│   ├── commonMain/
+│   │   ├── EnrollmentManager.kt # Core orchestration
+│   │   └── consent/             # GDPR consent management
+│   ├── androidMain/
+│   │   ├── ui/                  # 5-step enrollment wizard (~7,375 lines)
+│   │   │   ├── steps/           # Consent, Selection, Capture, Payment, Confirm
+│   │   │   └── factors/         # 15 factor enrollment canvases
+│   │   └── payment/             # 14 payment provider integrations
+│   │       └── providers/       # StripeProvider, AdyenProvider, etc.
+│   │
+├── merchant/                     # Merchant verification module
+│   ├── commonMain/
+│   │   └── MerchantConfig.kt
+│   ├── androidMain/
+│   │   ├── verification/        # Currently disabled for testing
+│   │   │   ├── VerificationManager.kt.disabled
+│   │   │   ├── DigestComparator.kt.disabled
+│   │   │   └── ProofGenerator.kt.disabled
+│   │   ├── fraud/              # 7-strategy fraud detection (disabled)
+│   │   │   ├── FraudDetector.kt.disabled
+│   │   │   └── RateLimiter.kt.disabled
+│   │   └── ui/                 # 17 verification canvases (disabled)
+│   │
+└── backend/                     # Node.js API server
+    ├── server.js                # Express server with TLS Redis
+    ├── routes/                  # REST API endpoints
+    │   ├── enrollmentRouter.js  # 5 endpoints
+    │   ├── verificationRouter.js # 3 endpoints
+    │   ├── blockchainRouter.js  # 7 Solana endpoints
+    │   └── adminRouter.js       # Admin API
+    ├── crypto/                  # Double-layer encryption
+    │   ├── doubleLayerCrypto.js # 18KB implementation
+    │   ├── keyDerivation.js     # PBKDF2 100K iterations
+    │   ├── kmsProvider.js       # AWS KMS integration
+    │   └── memoryWipe.js        # Secure memory wiping
+    ├── middleware/              # Rate limiting, session, nonce
+    │   ├── rateLimiter.js
+    │   ├── sessionManager.js
+    │   └── nonceValidator.js
+    ├── database/                # PostgreSQL for wrapped keys
+    └── services/                # Solana RPC, wallet verification
 ```
 
 ### Dependency Injection (Simple)
