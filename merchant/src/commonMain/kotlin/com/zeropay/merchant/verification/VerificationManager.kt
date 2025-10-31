@@ -18,6 +18,7 @@ import com.zeropay.sdk.security.AntiTampering
 import com.zeropay.sdk.security.SecurityPolicy
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import kotlin.random.Random
 // REMOVED: import java.util.concurrent.ConcurrentHashMap - Not KMP compatible
 
 /**
@@ -70,6 +71,49 @@ class VerificationManager(
     
     companion object {
         private const val TAG = "VerificationManager"
+
+        /**
+         * Generate a KMP-compatible UUID v4 (random)
+         * Based on enrollment module's UUIDManager
+         */
+        private fun generateUUID(): String {
+            val random = Random.Default
+
+            // Generate 16 random bytes
+            val bytes = ByteArray(16)
+            random.nextBytes(bytes)
+
+            // Set version to 4 (random)
+            bytes[6] = ((bytes[6].toInt() and 0x0F) or 0x40).toByte()
+
+            // Set variant to RFC 4122
+            bytes[8] = ((bytes[8].toInt() and 0x3F) or 0x80).toByte()
+
+            // Format as UUID string
+            fun toHex(b: Byte): String = String.format("%02x", b)
+            return buildString {
+                append(toHex(bytes[0]))
+                append(toHex(bytes[1]))
+                append(toHex(bytes[2]))
+                append(toHex(bytes[3]))
+                append('-')
+                append(toHex(bytes[4]))
+                append(toHex(bytes[5]))
+                append('-')
+                append(toHex(bytes[6]))
+                append(toHex(bytes[7]))
+                append('-')
+                append(toHex(bytes[8]))
+                append(toHex(bytes[9]))
+                append('-')
+                append(toHex(bytes[10]))
+                append(toHex(bytes[11]))
+                append(toHex(bytes[12]))
+                append(toHex(bytes[13]))
+                append(toHex(bytes[14]))
+                append(toHex(bytes[15]))
+            }
+        }
     }
     
     // Active sessions
@@ -198,7 +242,7 @@ class VerificationManager(
 
             // Create local session
             val session = VerificationSession(
-                sessionId = UUID.randomUUID().toString(),
+                sessionId = generateUUID(),
                 userId = userId,
                 merchantId = merchantId,
                 transactionAmount = transactionAmount,

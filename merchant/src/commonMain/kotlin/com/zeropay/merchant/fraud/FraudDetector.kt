@@ -498,36 +498,34 @@ class FraudDetectorComplete {
     private fun checkTimeOfDayPatterns(userId: String, now: Long): RiskResult {
         var score = 0
         val reasons = mutableListOf<String>()
-        
-        // Get hour of day (0-23)
-        val hour = java.util.Calendar.getInstance().apply {
-            timeInMillis = now
-        }.get(java.util.Calendar.HOUR_OF_DAY)
-        
-        // Unusual hours (2 AM - 5 AM local time)
+
+        // Get hour of day (0-23) from epoch milliseconds (UTC)
+        // KMP-compatible: pure Kotlin math, no java.util.Calendar
+        val hour = ((now / (1000 * 60 * 60)) % 24).toInt()
+
+        // Unusual hours (2 AM - 5 AM UTC)
         if (hour in 2..5) {
             score += 5
-            reasons.add("Unusual time: ${hour}:00")
+            reasons.add("Unusual time: ${hour}:00 UTC")
         }
-        
+
         // Check user's historical time-of-day pattern
         val userAttemptList = userAttempts[userId]
         if (userAttemptList != null && userAttemptList.size > 10) {
             val historicalHours = userAttemptList.map { attempt ->
-                java.util.Calendar.getInstance().apply {
-                    timeInMillis = attempt.timestamp
-                }.get(java.util.Calendar.HOUR_OF_DAY)
+                // Extract hour from timestamp (UTC)
+                ((attempt.timestamp / (1000 * 60 * 60)) % 24).toInt()
             }
-            
+
             val avgHour = historicalHours.average()
             val hourDeviation = abs(hour - avgHour)
-            
+
             if (hourDeviation > 8) {
                 score += 10
                 reasons.add("Unusual time for this user")
             }
         }
-        
+
         return RiskResult(score, reasons)
     }
     
