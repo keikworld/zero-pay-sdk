@@ -44,29 +44,30 @@ fun ColourVerificationCanvas(
     var selectedColors by remember { mutableStateOf<List<Int>>(emptyList()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
-    
+
     val scope = rememberCoroutineScope()
     val minColors = 3
     val maxColors = 8
+
+    // Get color palette and convert to Compose Colors
+    val colorPalette = remember {
+        ColourFactor.getColours().map { hexString ->
+            Color(android.graphics.Color.parseColor(hexString))
+        }
+    }
     
-    suspend fun handleSubmit() {
+    fun handleSubmit() {
         if (selectedColors.size < minColors) {
             errorMessage = "Select at least $minColors colors"
             return
         }
-        
+
         isProcessing = true
-        
+
         try {
-            val result = ColourFactor.processColourSequence(selectedColors)
-            if (result.isSuccess) {
-                val digest = result.getOrNull()!!
-                selectedColors = emptyList()
-                onSubmit(digest)
-            } else {
-                errorMessage = result.exceptionOrNull()?.message ?: "Invalid sequence"
-                isProcessing = false
-            }
+            val digest = ColourFactor.digest(selectedColors)
+            selectedColors = emptyList()
+            onSubmit(digest)
         } catch (e: Exception) {
             errorMessage = "Error: ${e.message}"
             isProcessing = false
@@ -152,7 +153,7 @@ fun ColourVerificationCanvas(
                                     modifier = Modifier
                                         .size(40.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(Factor.COLOUR_PALETTE[colorIndex])
+                                        .background(colorPalette[colorIndex])
                                         .border(2.dp, Color.White, RoundedCornerShape(8.dp))
                                 )
                             }
@@ -171,7 +172,7 @@ fun ColourVerificationCanvas(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                itemsIndexed(Factor.COLOUR_PALETTE) { index, color ->
+                itemsIndexed(colorPalette) { index, color ->
                     val isSelected = selectedColors.contains(index)
                     val selectionOrder = if (isSelected) selectedColors.indexOf(index) + 1 else null
                     

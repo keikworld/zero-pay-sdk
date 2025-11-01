@@ -62,29 +62,28 @@ fun WordsVerificationCanvas(
     val minWords = 3
     val maxWords = 6
     
-    // Shuffle words for display
+    // Get word list and shuffle for display
+    val wordList = remember { WordsFactor.getWords() }
     val shuffledWords = remember {
-        Factor.WORD_LIST.shuffled().take(20)
+        wordList.shuffled().take(20)
     }
-    
-    suspend fun handleSubmit() {
+
+    fun handleSubmit() {
         if (selectedWords.size < minWords) {
             errorMessage = "Select at least $minWords words"
             return
         }
-        
+
         isProcessing = true
-        
+
         try {
-            val result = WordsFactor.processWordSequence(selectedWords)
-            if (result.isSuccess) {
-                val digest = result.getOrNull()!!
-                selectedWords = emptyList()
-                onSubmit(digest)
-            } else {
-                errorMessage = result.exceptionOrNull()?.message ?: "Invalid sequence"
-                isProcessing = false
+            // Convert selected words to indices
+            val selectedIndices = selectedWords.map { word ->
+                wordList.indexOf(word)
             }
+            val digest = WordsFactor.digest(selectedIndices)
+            selectedWords = emptyList()
+            onSubmit(digest)
         } catch (e: Exception) {
             errorMessage = "Error: ${e.message}"
             isProcessing = false
@@ -283,9 +282,7 @@ fun WordsVerificationCanvas(
                 
                 Button(
                     onClick = {
-                        scope.launch {
-                            handleSubmit()
-                        }
+                        handleSubmit()
                     },
                     modifier = Modifier.weight(1f),
                     enabled = selectedWords.size >= minWords && !isProcessing,

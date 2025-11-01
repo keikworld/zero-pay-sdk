@@ -14,6 +14,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -83,7 +85,7 @@ fun PatternVerificationCanvas(
         return if (nearestDot != -1) nearestDot else null
     }
     
-    suspend fun handleSubmit() {
+    fun handleSubmit() {
         if (selectedDots.size < minDots) {
             errorMessage = "Pattern must connect at least $minDots dots"
             return
@@ -92,27 +94,28 @@ fun PatternVerificationCanvas(
         isProcessing = true
         
         try {
-            val result = when (factorType) {
+            // Convert to PatternPoints
+            val patternPoints = selectedDots.mapIndexed { index, dotIndex ->
+                PatternFactor.PatternPoint(
+                    x = (dotIndex % 3).toFloat(),
+                    y = (dotIndex / 3).toFloat(),
+                    t = if (index < dotTimings.size) dotTimings[index].timestamp else System.currentTimeMillis()
+                )
+            }
+
+            val digest = when (factorType) {
                 com.zeropay.sdk.Factor.PATTERN_NORMAL -> {
-                    PatternFactor.processNormalPattern(selectedDots)
+                    PatternFactor.digestNormalisedTiming(patternPoints)
                 }
                 com.zeropay.sdk.Factor.PATTERN_MICRO -> {
-                    PatternFactor.processMicroPattern(selectedDots, dotTimings)
+                    PatternFactor.digestMicroTiming(patternPoints)
                 }
                 else -> throw IllegalArgumentException("Invalid factor type")
             }
-            
-            if (result.isSuccess) {
-                val digest = result.getOrNull()!!
-                selectedDots = emptyList()
-                dotTimings = emptyList()
-                onSubmit(digest)
-            } else {
-                errorMessage = result.exceptionOrNull()?.message ?: "Invalid pattern"
-                selectedDots = emptyList()
-                currentPath = emptyList()
-                isProcessing = false
-            }
+
+            selectedDots = emptyList()
+            dotTimings = emptyList()
+            onSubmit(digest)
         } catch (e: Exception) {
             errorMessage = "Error: ${e.message}"
             isProcessing = false
@@ -327,14 +330,14 @@ fun PatternVerificationCanvas(
                         
                         if (isSelected) {
                             val order = selectedDots.indexOf(index) + 1
-                            drawContext.canvas.nativeCanvas.apply {
+                            drawIntoCanvas { canvas ->
                                 val paint = android.graphics.Paint().apply {
                                     color = android.graphics.Color.WHITE
                                     textSize = 32f
                                     textAlign = android.graphics.Paint.Align.CENTER
                                     isFakeBoldText = true
                                 }
-                                drawText(
+                                canvas.nativeCanvas.drawText(
                                     order.toString(),
                                     position.x,
                                     position.y + 12f,

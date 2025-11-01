@@ -65,7 +65,7 @@ fun BalanceVerificationCanvas(
     var captureProgress by remember { mutableStateOf(0f) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
-    var balanceReadings by remember { mutableStateOf<List<Triple<Float, Float, Float>>>(emptyList()) }
+    var balanceReadings by remember { mutableStateOf<List<BalanceFactor.BalancePoint>>(emptyList()) }
     
     val captureThreshold = 0.5f // Maximum movement allowed
     val captureDuration = 3000L // 3 seconds
@@ -83,9 +83,10 @@ fun BalanceVerificationCanvas(
                     val y = it.values[1]
                     val z = it.values[2]
                     accelerometerData = Triple(x, y, z)
-                    
+
                     if (isCapturing && balanceReadings.size < (captureDuration / sampleRate).toInt()) {
-                        balanceReadings = balanceReadings + Triple(x, y, z)
+                        val point = BalanceFactor.BalancePoint(x, y, z, System.currentTimeMillis())
+                        balanceReadings = balanceReadings + point
                         captureProgress = balanceReadings.size.toFloat() / (captureDuration / sampleRate)
                     }
                 }
@@ -107,40 +108,29 @@ fun BalanceVerificationCanvas(
             abs(x) < captureThreshold && abs(y) < captureThreshold
         } ?: false
     }
-    
-    // Auto-submit when capture complete
-    LaunchedEffect(captureProgress) {
-        if (captureProgress >= 1f && balanceReadings.isNotEmpty()) {
-            scope.launch {
-                handleSubmit()
-            }
-        }
-    }
-    
-    suspend fun handleSubmit() {
+
+    fun handleSubmit() {
         isProcessing = true
-        
+
         try {
-            val result = BalanceFactorEnrollment.processBalance(balanceReadings)
-            if (result.isSuccess) {
-                val digest = result.getOrNull()!!
-                balanceReadings = emptyList()
-                isCapturing = false
-                captureProgress = 0f
-                onSubmit(digest)
-            } else {
-                errorMessage = result.exceptionOrNull()?.message ?: "Balance verification failed"
-                isProcessing = false
-                isCapturing = false
-                captureProgress = 0f
-                balanceReadings = emptyList()
-            }
+            val digest = BalanceFactor.digest(balanceReadings)
+            balanceReadings = emptyList()
+            isCapturing = false
+            captureProgress = 0f
+            onSubmit(digest)
         } catch (e: Exception) {
             errorMessage = "Error: ${e.message}"
             isProcessing = false
             isCapturing = false
             captureProgress = 0f
             balanceReadings = emptyList()
+        }
+    }
+
+    // Auto-submit when capture complete
+    LaunchedEffect(captureProgress) {
+        if (captureProgress >= 1f && balanceReadings.isNotEmpty()) {
+            handleSubmit()
         }
     }
     

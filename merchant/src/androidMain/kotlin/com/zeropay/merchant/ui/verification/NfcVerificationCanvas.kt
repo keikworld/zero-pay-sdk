@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zeropay.sdk.factors.NfcFactorEnrollment
+import com.zeropay.sdk.factors.NfcFactor
 import kotlinx.coroutines.launch
 
 /**
@@ -91,22 +91,14 @@ fun NfcVerificationCanvas(
         }
     }
     
-    suspend fun handleNfcTag(tag: Tag) {
+    fun handleNfcTag(tag: Tag) {
         isScanning = false
         isProcessing = true
-        
+
         try {
             val tagUid = tag.id
-            val result = NfcFactorEnrollment.processNfcTag(tagUid)
-            
-            if (result.isSuccess) {
-                val digest = result.getOrNull()!!
-                onSubmit(digest)
-            } else {
-                errorMessage = result.exceptionOrNull()?.message ?: "NFC verification failed"
-                isProcessing = false
-                isScanning = true
-            }
+            val digest = NfcFactor.digest(tagUid)
+            onSubmit(digest)
         } catch (e: Exception) {
             errorMessage = "Error: ${e.message}"
             isProcessing = false

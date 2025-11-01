@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zeropay.sdk.security.CryptoUtils
+import com.zeropay.sdk.factors.PinFactor
 import kotlinx.coroutines.launch
 
 /**
@@ -63,15 +63,13 @@ fun PINVerificationCanvas(
             errorMessage = "PIN must be at least $minLength digits"
             return
         }
-        
-        scope.launch {
-            try {
-                val digest = CryptoUtils.sha256(pin.toByteArray())
-                pin = "" // Clear immediately
-                onSubmit(digest)
-            } catch (e: Exception) {
-                errorMessage = "Error: ${e.message}"
-            }
+
+        try {
+            val digest = PinFactor.digest(pin)
+            pin = "" // Clear immediately
+            onSubmit(digest)
+        } catch (e: Exception) {
+            errorMessage = "Error: ${e.message}"
         }
     }
     

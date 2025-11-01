@@ -72,6 +72,10 @@ kotlin {
 
                 // Compose Activity integration
                 implementation("androidx.activity:activity-compose:1.8.2")
+
+                // Biometric authentication
+                implementation("androidx.biometric:biometric:1.1.0")
+                implementation("androidx.fragment:fragment-ktx:1.6.2")
             }
         }
 

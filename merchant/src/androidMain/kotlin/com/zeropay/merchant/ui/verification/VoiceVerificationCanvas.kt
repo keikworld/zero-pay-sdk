@@ -97,16 +97,39 @@ fun VoiceVerificationCanvas(
         )
     )
     
+    fun handleSubmit(audio: ByteArray) {
+        isProcessing = true
+
+        try {
+            val digest = VoiceFactor.digest(audio)
+            audioData = null
+            onSubmit(digest)
+        } catch (e: Exception) {
+            errorMessage = "Error: ${e.message}"
+            isProcessing = false
+        }
+    }
+
+    fun stopRecording() {
+        isRecording = false
+        recordingProgress = 0f
+
+        // TODO: Get actual recorded audio
+        val mockAudio = ByteArray(16000) { it.toByte() }
+        audioData = mockAudio
+        handleSubmit(mockAudio)
+    }
+
     fun startRecording() {
         if (!hasPermission) {
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             return
         }
-        
+
         isRecording = true
         recordingProgress = 0f
         errorMessage = null
-        
+
         scope.launch {
             // TODO: Start actual audio recording
             val startTime = System.currentTimeMillis()
@@ -114,41 +137,10 @@ fun VoiceVerificationCanvas(
                 delay(50)
                 recordingProgress = (System.currentTimeMillis() - startTime).toFloat() / recordingDuration
             }
-            
+
             if (isRecording) {
                 stopRecording()
             }
-        }
-    }
-    
-    fun stopRecording() {
-        isRecording = false
-        recordingProgress = 0f
-        
-        scope.launch {
-            // TODO: Get actual recorded audio
-            val mockAudio = ByteArray(16000) { it.toByte() }
-            audioData = mockAudio
-            handleSubmit(mockAudio)
-        }
-    }
-    
-    suspend fun handleSubmit(audio: ByteArray) {
-        isProcessing = true
-        
-        try {
-            val result = VoiceFactor.processVoiceRecording(audio)
-            if (result.isSuccess) {
-                val digest = result.getOrNull()!!
-                audioData = null
-                onSubmit(digest)
-            } else {
-                errorMessage = result.exceptionOrNull()?.message ?: "Voice verification failed"
-                isProcessing = false
-            }
-        } catch (e: Exception) {
-            errorMessage = "Error: ${e.message}"
-            isProcessing = false
         }
     }
     

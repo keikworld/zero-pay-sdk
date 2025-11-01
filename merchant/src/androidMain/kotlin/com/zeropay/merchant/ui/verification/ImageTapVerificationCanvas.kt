@@ -22,7 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zeropay.sdk.factors.ImageTapFactorEnrollment
+import com.zeropay.sdk.factors.ImageTapFactor
 import kotlinx.coroutines.launch
 
 /**
@@ -64,24 +64,32 @@ fun ImageTapVerificationCanvas(
     val requiredTaps = 2
     val imageId = "merchant_verification_image"
     
-    suspend fun handleSubmit() {
+    fun handleSubmit() {
         if (tapPoints.size != requiredTaps) {
             errorMessage = "Tap exactly $requiredTaps points"
             return
         }
-        
+
         isProcessing = true
-        
+
         try {
-            val result = ImageTapFactorEnrollment.processImageTaps(imageId, tapPoints)
-            if (result.isSuccess) {
-                val digest = result.getOrNull()!!
-                tapPoints = emptyList()
-                onSubmit(digest)
-            } else {
-                errorMessage = result.exceptionOrNull()?.message ?: "Invalid tap positions"
-                isProcessing = false
+            // Normalize tap points to 0-1 range
+            val normalizedPoints = tapPoints.map { (x, y) ->
+                ImageTapFactor.TapPoint(
+                    x = x / imageSize.width,
+                    y = y / imageSize.height,
+                    timestamp = System.currentTimeMillis()
+                )
             }
+
+            val imageInfo = ImageTapFactor.ImageInfo(
+                imageId = imageId,
+                imageHash = imageId.toByteArray()  // TODO: Use actual image hash
+            )
+
+            val digest = ImageTapFactor.digest(normalizedPoints, imageInfo)
+            tapPoints = emptyList()
+            onSubmit(digest)
         } catch (e: Exception) {
             errorMessage = "Error: ${e.message}"
             isProcessing = false

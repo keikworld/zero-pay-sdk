@@ -19,7 +19,6 @@ import com.zeropay.sdk.security.SecurityPolicy
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlin.random.Random
-// REMOVED: import java.util.concurrent.ConcurrentHashMap - Not KMP compatible
 
 /**
  * Verification Manager - PRODUCTION VERSION v2.0
@@ -150,7 +149,10 @@ class VerificationManager(
                 SecurityPolicy.SecurityDecision(
                     action = SecurityPolicy.SecurityAction.ALLOW,
                     threats = emptyList(),
+                    severity = com.zeropay.sdk.security.AntiTampering.Severity.NONE,
                     userMessage = "Security check skipped (no context)",
+                    resolutionInstructions = emptyList(),
+                    allowRetry = false,
                     merchantAlert = null
                 )
             }
@@ -198,9 +200,10 @@ class VerificationManager(
             // ========== RATE LIMITING ==========
 
             // Check rate limiting
-            if (!rateLimiter.allowVerificationAttempt(userId, deviceFingerprint, ipAddress)) {
+            val rateCheck = rateLimiter.check(userId)
+            if (rateCheck != RateLimiter.RateResult.OK) {
                 return@withContext Result.failure(
-                    Exception("Rate limit exceeded. Please try again later.")
+                    Exception("Rate limit exceeded: $rateCheck. Please try again later.")
                 )
             }
             
@@ -231,7 +234,8 @@ class VerificationManager(
                 )
             }
 
-            val enrolledFactors = factorsResult.getOrNull()!!
+            val enrollmentData = factorsResult.getOrNull()!!
+            val enrolledFactors = enrollmentData.factors
 
             // Validate minimum factors (PSD3 SCA)
             if (enrolledFactors.size < MerchantConfig.MIN_FACTORS_REQUIRED) {
@@ -383,7 +387,8 @@ class VerificationManager(
                 )
             }
 
-            val enrolledDigests = enrolledDigestsResult.getOrNull()!!
+            val enrollmentData = enrolledDigestsResult.getOrNull()!!
+            val enrolledDigests = enrollmentData.factors
             
             // Compare all digests (constant-time)
             val allMatch = session.submittedDigests.all { (factor, submittedDigest) ->
@@ -434,20 +439,20 @@ class VerificationManager(
             
             // Success!
             activeSessions.remove(session.sessionId)
-            
+
             println("Verification successful: ${session.sessionId}")
-            
-            VerificationResult.Success(
+
+            return VerificationResult.Success(
                 sessionId = session.sessionId,
                 userId = session.userId,
                 merchantId = session.merchantId,
                 verifiedFactors = session.completedFactors.toList(),
                 zkProof = zkProof
             )
-            
+
         } catch (e: Exception) {
             println("Verification error")
-            VerificationResult.Failure(
+            return VerificationResult.Failure(
                 sessionId = session.sessionId,
                 error = MerchantConfig.VerificationError.UNKNOWN,
                 message = e.message ?: "Unknown error",
@@ -610,7 +615,7 @@ class VerificationManager(
                     userId = session.userId,
                     merchantId = session.merchantId,
                     verifiedFactors = session.completedFactors.toList(),
-                    zkProof = apiResponse.zk_proof
+                    zkProof = apiResponse.zk_proof?.toByteArray()
                 )
             } else {
                 VerificationResult.Failure(
@@ -644,7 +649,10 @@ class VerificationManager(
             SecurityPolicy.SecurityDecision(
                 action = SecurityPolicy.SecurityAction.ALLOW,
                 threats = emptyList(),
+                severity = com.zeropay.sdk.security.AntiTampering.Severity.NONE,
                 userMessage = "Security check pending KMP implementation",
+                resolutionInstructions = emptyList(),
+                allowRetry = false,
                 merchantAlert = null
             )
             // Original: SecurityPolicy.evaluateThreats(context, userId)

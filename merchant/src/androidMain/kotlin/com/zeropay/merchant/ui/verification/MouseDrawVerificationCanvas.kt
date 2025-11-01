@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zeropay.sdk.factors.MouseDrawFactorEnrollment
+import com.zeropay.sdk.factors.MouseFactor
 import kotlinx.coroutines.launch
 
 /**
@@ -52,34 +52,28 @@ fun MouseDrawVerificationCanvas(
     remainingSeconds: Int,
     modifier: Modifier = Modifier
 ) {
-    var points by remember { mutableStateOf<List<MouseDrawFactorEnrollment.MousePoint>>(emptyList()) }
+    var points by remember { mutableStateOf<List<MouseFactor.MousePoint>>(emptyList()) }
     var currentPath by remember { mutableStateOf(Path()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
     var isDrawing by remember { mutableStateOf(false) }
-    
+
     val scope = rememberCoroutineScope()
     val minPoints = 10
-    
-    suspend fun handleSubmit() {
+
+    fun handleSubmit() {
         if (points.size < minPoints) {
             errorMessage = "Drawing too short. Draw more."
             return
         }
-        
+
         isProcessing = true
-        
+
         try {
-            val result = MouseDrawFactorEnrollment.processMouseDrawing(points)
-            if (result.isSuccess) {
-                val digest = result.getOrNull()!!
-                points = emptyList()
-                currentPath = Path()
-                onSubmit(digest)
-            } else {
-                errorMessage = result.exceptionOrNull()?.message ?: "Invalid drawing"
-                isProcessing = false
-            }
+            val digest = MouseFactor.digestMicroTiming(points)
+            points = emptyList()
+            currentPath = Path()
+            onSubmit(digest)
         } catch (e: Exception) {
             errorMessage = "Error: ${e.message}"
             isProcessing = false
@@ -205,7 +199,7 @@ fun MouseDrawVerificationCanvas(
                                 onDragStart = { offset ->
                                     if (!isProcessing) {
                                         isDrawing = true
-                                        val point = MouseDrawFactorEnrollment.MousePoint(
+                                        val point = MouseFactor.MousePoint(
                                             offset.x,
                                             offset.y,
                                             System.currentTimeMillis()
@@ -220,7 +214,7 @@ fun MouseDrawVerificationCanvas(
                                 onDrag = { change, _ ->
                                     if (isDrawing && !isProcessing) {
                                         val offset = change.position
-                                        val point = MouseDrawFactorEnrollment.MousePoint(
+                                        val point = MouseFactor.MousePoint(
                                             offset.x,
                                             offset.y,
                                             System.currentTimeMillis()

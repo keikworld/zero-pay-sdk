@@ -5,7 +5,6 @@ package com.zeropay.merchant.fraud
 import kotlin.math.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-// REMOVED: import java.util.concurrent.ConcurrentHashMap - Not KMP compatible
 
 /**
  * Complete Fraud Detector - PRODUCTION VERSION

@@ -20,7 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zeropay.sdk.factors.StylusDrawFactorEnrollment
+import com.zeropay.sdk.factors.StylusFactor
 import kotlinx.coroutines.launch
 
 /**
@@ -53,7 +53,7 @@ fun StylusDrawVerificationCanvas(
     remainingSeconds: Int,
     modifier: Modifier = Modifier
 ) {
-    var points by remember { mutableStateOf<List<StylusDrawFactorEnrollment.StylusPoint>>(emptyList()) }
+    var points by remember { mutableStateOf<List<StylusFactor.StylusPoint>>(emptyList()) }
     var currentPath by remember { mutableStateOf(Path()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
@@ -63,26 +63,20 @@ fun StylusDrawVerificationCanvas(
     val scope = rememberCoroutineScope()
     val minPoints = 10
     
-    suspend fun handleSubmit() {
+    fun handleSubmit() {
         if (points.size < minPoints) {
             errorMessage = "Drawing too short. Draw more."
             return
         }
-        
+
         isProcessing = true
-        
+
         try {
-            val result = StylusDrawFactorEnrollment.processStylusDrawing(points)
-            if (result.isSuccess) {
-                val digest = result.getOrNull()!!
-                points = emptyList()
-                currentPath = Path()
-                avgPressure = 0f
-                onSubmit(digest)
-            } else {
-                errorMessage = result.exceptionOrNull()?.message ?: "Invalid drawing"
-                isProcessing = false
-            }
+            val digest = StylusFactor.digestFull(points)
+            points = emptyList()
+            currentPath = Path()
+            avgPressure = 0f
+            onSubmit(digest)
         } catch (e: Exception) {
             errorMessage = "Error: ${e.message}"
             isProcessing = false
@@ -236,7 +230,7 @@ fun StylusDrawVerificationCanvas(
                                 onDragStart = { offset ->
                                     if (!isProcessing) {
                                         isDrawing = true
-                                        val point = StylusDrawFactorEnrollment.StylusPoint(
+                                        val point = StylusFactor.StylusPoint(
                                             offset.x,
                                             offset.y,
                                             0.5f, // Default pressure
@@ -254,8 +248,8 @@ fun StylusDrawVerificationCanvas(
                                     if (isDrawing && !isProcessing) {
                                         val offset = change.position
                                         val pressure = change.pressure
-                                        
-                                        val point = StylusDrawFactorEnrollment.StylusPoint(
+
+                                        val point = StylusFactor.StylusPoint(
                                             offset.x,
                                             offset.y,
                                             pressure,
@@ -274,7 +268,7 @@ fun StylusDrawVerificationCanvas(
                 ) {
                     // Draw the path with varying width based on pressure
                     points.zipWithNext().forEach { (p1, p2) ->
-                        val strokeWidth = (2.dp + (p1.pressure * 8.dp)).toPx()
+                        val strokeWidth = (2.dp + (8.dp * p1.pressure)).toPx()
                         drawLine(
                             color = Color(0xFF4CAF50),
                             start = Offset(p1.x, p1.y),
@@ -380,7 +374,7 @@ fun StylusDrawVerificationCanvas(
                 }
                 
                 Button(
-                    onClick = { scope.launch { handleSubmit() } },
+                    onClick = { handleSubmit() },
                     modifier = Modifier.weight(1f),
                     enabled = points.size >= minPoints && !isProcessing,
                     colors = ButtonDefaults.buttonColors(

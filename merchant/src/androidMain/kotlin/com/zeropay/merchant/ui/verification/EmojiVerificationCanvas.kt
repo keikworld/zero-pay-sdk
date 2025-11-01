@@ -54,32 +54,29 @@ fun EmojiVerificationCanvas(
     remainingSeconds: Int,
     modifier: Modifier = Modifier
 ) {
-    var selectedEmojis by remember { mutableStateOf<List<String>>(emptyList()) }
+    var selectedIndices by remember { mutableStateOf<List<Int>>(emptyList()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
-    
+
     val scope = rememberCoroutineScope()
     val minEmojis = 3
     val maxEmojis = 8
-    
-    suspend fun handleSubmit() {
-        if (selectedEmojis.size < minEmojis) {
+
+    // Get emoji list from SDK
+    val emojiList = remember { EmojiFactor.getEmojis() }
+
+    fun handleSubmit() {
+        if (selectedIndices.size < minEmojis) {
             errorMessage = "Select at least $minEmojis emojis"
             return
         }
-        
+
         isProcessing = true
-        
+
         try {
-            val result = EmojiFactor.processEmojiSequence(selectedEmojis)
-            if (result.isSuccess) {
-                val digest = result.getOrNull()!!
-                selectedEmojis = emptyList()
-                onSubmit(digest)
-            } else {
-                errorMessage = result.exceptionOrNull()?.message ?: "Invalid sequence"
-                isProcessing = false
-            }
+            val digest = EmojiFactor.digest(selectedIndices)
+            selectedIndices = emptyList()
+            onSubmit(digest)
         } catch (e: Exception) {
             errorMessage = "Error: ${e.message}"
             isProcessing = false
@@ -152,18 +149,18 @@ fun EmojiVerificationCanvas(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Selected: ${selectedEmojis.size}/$maxEmojis",
+                        text = "Selected: ${selectedIndices.size}/$maxEmojis",
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    
-                    if (selectedEmojis.isNotEmpty()) {
+
+                    if (selectedIndices.isNotEmpty()) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            selectedEmojis.forEachIndexed { index, emoji ->
+                            selectedIndices.forEach { index ->
                                 Box(
                                     modifier = Modifier
                                         .size(48.dp)
@@ -173,7 +170,7 @@ fun EmojiVerificationCanvas(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = emoji,
+                                        text = emojiList[index],
                                         fontSize = 28.sp
                                     )
                                 }
@@ -194,18 +191,18 @@ fun EmojiVerificationCanvas(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                itemsIndexed(Factor.EMOJI_SET) { index, emoji ->
-                    val isSelected = selectedEmojis.contains(emoji)
-                    val selectionOrder = if (isSelected) selectedEmojis.indexOf(emoji) + 1 else null
-                    
+                itemsIndexed(emojiList) { index, emoji ->
+                    val isSelected = selectedIndices.contains(index)
+                    val selectionOrder = if (isSelected) selectedIndices.indexOf(index) + 1 else null
+
                     Card(
                         modifier = Modifier
                             .aspectRatio(1f)
                             .clickable {
                                 if (isSelected) {
-                                    selectedEmojis = selectedEmojis.filter { it != emoji }
-                                } else if (selectedEmojis.size < maxEmojis) {
-                                    selectedEmojis = selectedEmojis + emoji
+                                    selectedIndices = selectedIndices.filter { it != index }
+                                } else if (selectedIndices.size < maxEmojis) {
+                                    selectedIndices = selectedIndices + index
                                     errorMessage = null
                                 }
                             },
@@ -266,26 +263,24 @@ fun EmojiVerificationCanvas(
             ) {
                 OutlinedButton(
                     onClick = {
-                        selectedEmojis = emptyList()
+                        selectedIndices = emptyList()
                         errorMessage = null
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = !isProcessing && selectedEmojis.isNotEmpty(),
+                    enabled = !isProcessing && selectedIndices.isNotEmpty(),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Color.White
                     )
                 ) {
                     Text("Clear", fontSize = 16.sp)
                 }
-                
+
                 Button(
                     onClick = {
-                        scope.launch {
-                            handleSubmit()
-                        }
+                        handleSubmit()
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = selectedEmojis.size >= minEmojis && !isProcessing,
+                    enabled = selectedIndices.size >= minEmojis && !isProcessing,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF4CAF50),
                         disabledContainerColor = Color.Gray

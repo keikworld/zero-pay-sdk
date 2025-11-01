@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zeropay.sdk.factors.RhythmTapFactorEnrollment
+import com.zeropay.sdk.factors.RhythmTapFactor
 import kotlinx.coroutines.launch
 
 /**
@@ -78,24 +78,21 @@ fun RhythmTapVerificationCanvas(
         }
     }
     
-    suspend fun handleSubmit() {
+    fun handleSubmit() {
         if (taps.size < minTaps) {
             errorMessage = "Tap at least $minTaps times"
             return
         }
-        
+
         isProcessing = true
-        
+
         try {
-            val result = RhythmTapFactor.processRhythmTaps(taps, taps)
-            if (result.isSuccess) {
-                val digest = result.getOrNull()!!
-                taps = emptyList()
-                onSubmit(digest)
-            } else {
-                errorMessage = result.exceptionOrNull()?.message ?: "Invalid rhythm"
-                isProcessing = false
+            val rhythmTaps = taps.map { timestamp ->
+                RhythmTapFactor.RhythmTap(timestamp = timestamp)
             }
+            val digest = RhythmTapFactor.digest(rhythmTaps)
+            taps = emptyList()
+            onSubmit(digest)
         } catch (e: Exception) {
             errorMessage = "Error: ${e.message}"
             isProcessing = false
